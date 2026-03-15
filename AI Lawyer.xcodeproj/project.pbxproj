@@ -400,6 +400,8 @@
 				DEVELOPMENT_TEAM = Y32H8U459L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record your story so the AI can analyze it and build your case, timeline, and documents.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcribe your voice into text so the AI can understand and assist with your case.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -432,6 +434,8 @@
 				DEVELOPMENT_TEAM = Y32H8U459L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record your story so the AI can analyze it and build your case, timeline, and documents.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcribe your voice into text so the AI can understand and assist with your case.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
