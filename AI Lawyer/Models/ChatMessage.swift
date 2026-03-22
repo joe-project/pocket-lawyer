@@ -10,14 +10,24 @@ struct ChatMessage: Identifiable, Hashable {
     let sender: Sender
     let text: String
     let date: Date
+    /// AI response classification for display (file-first loop).
+    let responseTag: ResponseTag?
     /// When true, the AI is offering to generate a document; show "Yes, generate" in UI.
     let isDocumentOffer: Bool
 
-    init(id: UUID = UUID(), sender: Sender, text: String, date: Date = Date(), isDocumentOffer: Bool = false) {
+    init(
+        id: UUID = UUID(),
+        sender: Sender,
+        text: String,
+        date: Date = Date(),
+        responseTag: ResponseTag? = nil,
+        isDocumentOffer: Bool = false
+    ) {
         self.id = id
         self.sender = sender
         self.text = text
         self.date = date
+        self.responseTag = responseTag
         self.isDocumentOffer = isDocumentOffer
     }
 }

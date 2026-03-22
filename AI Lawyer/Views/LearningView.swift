@@ -7,21 +7,30 @@ struct LearningView: View {
         List {
             ForEach(LearningCategory.allCases) { category in
                 if let topicList = learningViewModel.topics[category], !topicList.isEmpty {
-                    Section(category.rawValue) {
+                    Section {
                         ForEach(topicList) { topic in
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(topic.title)
-                                    .font(.headline)
+                                    .font(AppTypography.body)
+                                    .foregroundColor(AppColors.textPrimary)
                                 Text(topic.summary)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .font(AppTypography.body)
+                                    .foregroundColor(AppColors.textPrimary)
                             }
                             .padding(.vertical, 4)
                         }
+                    } header: {
+                        Text(category.rawValue)
+                            .font(AppTypography.heading)
+                            .foregroundColor(AppColors.textPrimary)
                     }
+                    .listRowBackground(LuxuryTheme.surfaceCard)
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(LuxuryTheme.primaryBackground)
         .navigationTitle("Learning")
+        .toolbarColorScheme(.light, for: .navigationBar)
     }
 }

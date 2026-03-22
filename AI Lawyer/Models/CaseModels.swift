@@ -9,13 +9,49 @@ enum CaseCategory: String, CaseIterable, Identifiable, Codable {
 }
 
 enum CaseSubfolder: String, CaseIterable, Identifiable, Codable {
-    case filedDocuments = "Filed Documents"
-    case response = "Response"
     case evidence = "Evidence"
     case documents = "Documents"
+    case response = "Responses"
     case recordings = "Recordings"
-    case history = "History"
     case timeline = "Timeline"
+    case history = "History"
+    case filedDocuments = "Filed Documents"
+
+    var id: String { rawValue }
+}
+
+/// Case-centric workspace navigation (replaces folder grouping in the sidebar).
+enum CaseWorkspaceSection: String, CaseIterable, Identifiable {
+    case overview = "Overview"
+    case timeline = "Timeline"
+    case chat = "Chat"
+    case recordings = "Recordings"
+    case evidence = "Evidence"
+    case documents = "Documents"
+    case emails = "Emails"
+    case deadlines = "Deadlines"
+    case tasks = "Tasks"
+    case history = "History"
+
+    var id: String { rawValue }
+
+    /// For sections that map to a document list, the CaseSubfolder to use.
+    var documentSubfolder: CaseSubfolder? {
+        switch self {
+        case .evidence: return .evidence
+        case .documents: return .documents
+        case .history: return .history
+        default: return nil
+        }
+    }
+}
+
+/// Subfolders under Recordings (Voice Stories, Witness Statements, etc.).
+enum RecordingSubfolder: String, CaseIterable, Identifiable, Codable {
+    case voiceStories = "Voice Stories"
+    case witnessStatements = "Witness Statements"
+    case notes = "Notes"
+    case depositions = "Depositions"
 
     var id: String { rawValue }
 }
@@ -31,6 +67,17 @@ enum TimelineEventKind: String, Codable {
     case task
     case filing
     case response
+}
+
+enum ResponseTag: String, Codable, CaseIterable, Identifiable, Equatable {
+    case note
+    case draft
+    case strategy
+    case evidence
+
+    var id: String { rawValue }
+
+    var displayName: String { rawValue.capitalized }
 }
 
 struct TimelineEvent: Identifiable, Codable, Equatable {
@@ -74,21 +121,47 @@ struct CaseFile: Identifiable, Codable, Equatable {
     var type: CaseFileType
     var relativePath: String
     var createdAt: Date
+    /// Case this file belongs to. Optional for backward compatibility with existing saved data.
+    var caseId: UUID?
+    /// When in Recordings, which subfolder (Voice Stories, Witness Statements, etc.). Nil for legacy or non-recording files.
+    var recordingSubfolder: RecordingSubfolder?
     /// For AI-generated documents, inline content so user can view/download. For images, nil and data stored on disk at relativePath.
     var content: String?
+    /// Length in seconds (e.g. for audio recordings). Optional for backward compatibility.
+    var durationSeconds: Int?
+
+    /// AI response classification for file-first loops (e.g. note/draft/strategy/evidence).
+    var responseTag: ResponseTag?
+    /// Stable grouping key used for version history rollbacks.
+    var versionGroupId: String?
+    /// Version number within the versionGroupId (v1, v2, ...).
+    var versionNumber: Int?
 
     init(id: UUID = UUID(),
          name: String,
          type: CaseFileType,
          relativePath: String,
          createdAt: Date = Date(),
-         content: String? = nil) {
+         caseId: UUID? = nil,
+         recordingSubfolder: RecordingSubfolder? = nil,
+         content: String? = nil,
+         durationSeconds: Int? = nil,
+         responseTag: ResponseTag? = nil,
+         versionGroupId: String? = nil,
+         versionNumber: Int? = nil) {
         self.id = id
         self.name = name
         self.type = type
         self.relativePath = relativePath
         self.createdAt = createdAt
+        self.caseId = caseId
+        self.recordingSubfolder = recordingSubfolder
         self.content = content
+        self.durationSeconds = durationSeconds
+
+        self.responseTag = responseTag
+        self.versionGroupId = versionGroupId
+        self.versionNumber = versionNumber
     }
 }
 
@@ -99,12 +172,18 @@ struct CaseFolder: Identifiable, Codable {
     var subfolders: [CaseSubfolder: [CaseFile]]
     /// Custom display names for folders; default is CaseSubfolder.rawValue.
     var customFolderNames: [CaseSubfolder: String]
+    /// Email drafts generated for this case (stored locally; never sent automatically).
+    var emailDrafts: [EmailDraft]
+    /// Deadlines identified from evidence or case (e.g. response due, filing deadline).
+    var deadlines: [LegalDeadline]
 
     init(id: UUID = UUID(),
          title: String,
          category: CaseCategory,
          subfolders: [CaseSubfolder: [CaseFile]] = [:],
-         customFolderNames: [CaseSubfolder: String] = [:]) {
+         customFolderNames: [CaseSubfolder: String] = [:],
+         emailDrafts: [EmailDraft] = [],
+         deadlines: [LegalDeadline] = []) {
         self.id = id
         self.title = title
         self.category = category
@@ -115,6 +194,34 @@ struct CaseFolder: Identifiable, Codable {
         }
         self.subfolders = initial
         self.customFolderNames = customFolderNames
+        self.emailDrafts = emailDrafts
+        self.deadlines = deadlines
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, category, subfolders, customFolderNames, emailDrafts, deadlines
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        category = try c.decode(CaseCategory.self, forKey: .category)
+        subfolders = try c.decode([CaseSubfolder: [CaseFile]].self, forKey: .subfolders)
+        customFolderNames = try c.decode([CaseSubfolder: String].self, forKey: .customFolderNames)
+        emailDrafts = try c.decodeIfPresent([EmailDraft].self, forKey: .emailDrafts) ?? []
+        deadlines = try c.decodeIfPresent([LegalDeadline].self, forKey: .deadlines) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(title, forKey: .title)
+        try c.encode(category, forKey: .category)
+        try c.encode(subfolders, forKey: .subfolders)
+        try c.encode(customFolderNames, forKey: .customFolderNames)
+        try c.encode(emailDrafts, forKey: .emailDrafts)
+        try c.encode(deadlines, forKey: .deadlines)
     }
 
     func displayName(for subfolder: CaseSubfolder) -> String {

@@ -7,8 +7,8 @@ struct LegalDisclaimerView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Legal Disclaimer")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(AppTypography.heading)
+                    .foregroundColor(AppColors.textPrimary)
 
                 Text("""
                 Ask AI Lawyer is an informational and assistive tool only. It does not provide legal advice, does not create an attorney‑client relationship, and is not a substitute for a licensed attorney.
@@ -17,7 +17,8 @@ struct LegalDisclaimerView: View {
 
                 Use of this app does not guarantee any outcome in any legal matter. The developers and operators of Ask AI Lawyer are not responsible for any actions you take or decisions you make based on content or outputs from this app.
                 """)
-                .font(.body)
+                .font(AppTypography.body)
+                .foregroundColor(AppColors.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             }
             .padding()

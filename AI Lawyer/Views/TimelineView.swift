@@ -17,20 +17,20 @@ struct TimelineView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color("BackgroundNavy").opacity(0.98))
+        .background(AppColors.background)
     }
 
     private var emptyView: some View {
         VStack(spacing: 12) {
             Image(systemName: "clock.badge.checkmark")
                 .font(.system(size: 44))
-                .foregroundColor(Color("GoldAccent").opacity(0.7))
+                .foregroundStyle(AppColors.primary)
             Text("No timeline events yet")
-                .font(.headline)
-                .foregroundColor(.white)
+                .font(LuxuryTheme.sectionFont(size: 17))
+                .foregroundColor(AppColors.textPrimary)
             Text("Tasks, filings, and AI-generated responses will appear here and update automatically.")
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.8))
+                .font(LuxuryTheme.bodyFont(size: 14))
+                .foregroundColor(AppColors.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
         }
@@ -53,26 +53,30 @@ struct TimelineView: View {
             icon(for: event.kind)
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title)
-                    .font(.subheadline)
+                    .font(LuxuryTheme.bodyFont(size: 15))
                     .fontWeight(.semibold)
-                    .foregroundColor(.white)
+                    .foregroundColor(AppColors.textPrimary)
                 if let summary = event.summary, !summary.isEmpty {
                     Text(summary)
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(LuxuryTheme.bodyFont(size: 12))
+                        .foregroundColor(AppColors.textPrimary)
                 }
                 Text(event.createdAt, style: .date)
-                    .font(.caption2)
-                    .foregroundColor(.white.opacity(0.6))
+                    .font(LuxuryTheme.bodyFont(size: 11))
+                    .foregroundColor(AppColors.textPrimary)
                 Button("Revert to here") {
                     caseTreeViewModel.revertTimeline(to: event.id, caseId: caseId)
                 }
-                .font(.caption)
-                .foregroundColor(Color("GoldAccent"))
+                .font(LuxuryTheme.bodyFont(size: 12))
+                .foregroundColor(AppColors.textPrimary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
-            .background(Color.white.opacity(0.08))
+            .background(LuxuryTheme.surfaceCard)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(LuxuryTheme.cardBorder, lineWidth: 1)
+            )
             .cornerRadius(10)
         }
     }
@@ -81,7 +85,7 @@ struct TimelineView: View {
         let (name, color) = switch kind {
         case .task: ("checkmark.circle.fill", Color.blue)
         case .filing: ("doc.fill", Color.orange)
-        case .response: ("text.bubble.fill", Color("GoldAccent"))
+        case .response: ("text.bubble.fill", AppColors.primary)
         }
         return Image(systemName: name)
             .font(.title2)

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>logFormatVersion</key>
+	<integer>12</integer>
+	<key>logs</key>
+	<dict>
+		<key>19A19CD0-0227-4456-B3CB-CEE96A1F511B</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>19A19CD0-0227-4456-B3CB-CEE96A1F511B.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>E</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>5</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>AI Lawyer project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>AI Lawyer</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project AI Lawyer with scheme AI Lawyer and configuration Debug</string>
+			<key>timeStartedRecording</key>
+			<real>795628121.24949896</real>
+			<key>timeStoppedRecording</key>
+			<real>795628134.99591303</real>
+			<key>title</key>
+			<string>Building project AI Lawyer with scheme AI Lawyer and configuration Debug</string>
+			<key>uniqueIdentifier</key>
+			<string>19A19CD0-0227-4456-B3CB-CEE96A1F511B</string>
+		</dict>
+		<key>D2A7FC9D-5748-4477-894F-2D6B9692FB78</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>D2A7FC9D-5748-4477-894F-2D6B9692FB78.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>E</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>4</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>AI Lawyer project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>AI Lawyer</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project AI Lawyer with scheme AI Lawyer</string>
+			<key>timeStartedRecording</key>
+			<real>795627992.67561305</real>
+			<key>timeStoppedRecording</key>
+			<real>795628003.43453097</real>
+			<key>title</key>
+			<string>Building project AI Lawyer with scheme AI Lawyer</string>
+			<key>uniqueIdentifier</key>
+			<string>D2A7FC9D-5748-4477-894F-2D6B9692FB78</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

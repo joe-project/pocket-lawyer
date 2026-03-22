@@ -5,13 +5,12 @@ struct LegalDisclaimerAcceptView: View {
 
     var body: some View {
         ZStack {
-            Color("BackgroundNavy").ignoresSafeArea()
+            LuxuryTheme.primaryBackground.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Legal Disclaimer")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(Color("GoldAccent"))
+                        .font(AppTypography.heading)
+                        .foregroundColor(AppColors.textPrimary)
 
                     Text("""
                     Ask AI Lawyer is an informational and assistive tool only. It does not provide legal advice, does not create an attorney‑client relationship, and is not a substitute for a licensed attorney.
@@ -20,8 +19,8 @@ struct LegalDisclaimerAcceptView: View {
 
                     Use of this app does not guarantee any outcome in any legal matter. The developers and operators of Ask AI Lawyer are not responsible for any actions you take or decisions you make based on content or outputs from this app.
                     """)
-                    .font(.body)
-                    .foregroundColor(.white.opacity(0.95))
+                    .font(AppTypography.body)
+                    .foregroundColor(AppColors.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(24)
@@ -32,12 +31,8 @@ struct LegalDisclaimerAcceptView: View {
                 Button("I Accept") {
                     hasAcceptedLegalDisclaimer = true
                 }
-                .font(.headline)
-                .foregroundColor(Color("BackgroundNavy"))
+                .buttonStyle(AppButtonStyle())
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Color("GoldAccent"))
-                .cornerRadius(12)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }

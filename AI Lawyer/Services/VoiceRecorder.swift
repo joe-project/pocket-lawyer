@@ -15,10 +15,16 @@ final class VoiceRecorder: ObservableObject {
     func requestPermissions() async {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
             try session.setActive(true)
-            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-                session.requestRecordPermission { _ in cont.resume() }
+            if #available(iOS 17.0, *) {
+                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                    AVAudioApplication.requestRecordPermission { _ in cont.resume() }
+                }
+            } else {
+                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                    session.requestRecordPermission { _ in cont.resume() }
+                }
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -29,7 +35,13 @@ final class VoiceRecorder: ObservableObject {
                 SFSpeechRecognizer.requestAuthorization { _ in cont.resume() }
             }
         }
-        permissionGranted = session.recordPermission == .granted && SFSpeechRecognizer.authorizationStatus() == .authorized
+        let micGranted: Bool
+        if #available(iOS 17.0, *) {
+            micGranted = AVAudioApplication.shared.recordPermission == .granted
+        } else {
+            micGranted = session.recordPermission == .granted
+        }
+        permissionGranted = micGranted && SFSpeechRecognizer.authorizationStatus() == .authorized
         if !permissionGranted {
             errorMessage = "Microphone and speech recognition access are needed. Enable them in Settings."
         }
@@ -59,6 +71,7 @@ final class VoiceRecorder: ObservableObject {
         }
     }
 
+    /// Stops recording and returns the transcript as text (empty string if nothing was said or recognition failed).
     func stopRecordingAndTranscribe() async -> String {
         guard let recorder = audioRecorder, let url = recordingURL else {
             isRecording = false
@@ -69,7 +82,8 @@ final class VoiceRecorder: ObservableObject {
         let urlToUse = url
         recordingURL = nil
         isRecording = false
-        return await transcribe(url: urlToUse)
+        let transcript = await transcribe(url: urlToUse)
+        return transcript
     }
 
     private func transcribe(url: URL) async -> String {

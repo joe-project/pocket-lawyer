@@ -80,6 +80,12 @@ final class LocalCaseStorage {
         try? data.write(to: url)
     }
 
+    /// Write audio data to disk (e.g. for Recordings).
+    func writeAudio(caseId: UUID, subfolder: CaseSubfolder, fileId: UUID, data: Data) {
+        let url = fileURL(caseId: caseId, subfolder: subfolder, fileId: fileId, type: .audio)
+        try? data.write(to: url)
+    }
+
     /// Read text content from disk (for files that store content on disk instead of in-memory).
     func readFileContent(at relativePath: String) -> String? {
         let url = documentsURL.appendingPathComponent(relativePath)
@@ -89,6 +95,12 @@ final class LocalCaseStorage {
     /// Full URL for a file (e.g. for sharing / export).
     func fullURL(relativePath: String) -> URL {
         documentsURL.appendingPathComponent(relativePath)
+    }
+
+    /// Deletes a file stored for a case/subfolder/fileId/type from disk (best-effort).
+    func deleteFileContent(caseId: UUID, subfolder: CaseSubfolder, fileId: UUID, type: CaseFileType) {
+        let url = fileURL(caseId: caseId, subfolder: subfolder, fileId: fileId, type: type)
+        try? fileManager.removeItem(at: url)
     }
 
     /// Check if file exists on disk (for images / stored docs).

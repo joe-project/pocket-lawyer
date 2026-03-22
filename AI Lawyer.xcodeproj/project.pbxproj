@@ -395,11 +395,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Y32H8U459L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record your story so the AI can analyze it and build your case, timeline, and documents.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcribe your voice into text so the AI can understand and assist with your case.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -429,11 +431,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Y32H8U459L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record your story so the AI can analyze it and build your case, timeline, and documents.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcribe your voice into text so the AI can understand and assist with your case.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

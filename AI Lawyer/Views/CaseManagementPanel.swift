@@ -1,155 +1,196 @@
 import SwiftUI
 
 struct CaseManagementPanel: View {
-    @EnvironmentObject var caseTreeViewModel: CaseTreeViewModel
+    @EnvironmentObject var workspace: WorkspaceManager
     @EnvironmentObject var learningViewModel: LearningViewModel
     @Binding var showLearning: Bool
+    @State private var searchText = ""
+    @State private var renamingCase: CaseFolder?
+    @State private var renameText: String = ""
+
+    private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 0) {
-                casesList
-                if caseTreeViewModel.selectedCase != nil {
-                    Divider()
-                        .background(Color.white.opacity(0.2))
-                        .padding(.horizontal, 8)
-                    folderTreeSection
+                if workspace.isInvitedParticipantMode {
+                    invitedParticipantBanner
                 }
-                learningRow
+                searchSection
+                casesSection
+                Divider()
+                    .background(LuxuryTheme.navBarBorder)
+                    .padding(.horizontal, 8)
+                bottomSection
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(minHeight: 600)
         }
         .scrollBounceBehavior(.automatic)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color("BackgroundNavy"))
-    }
+        .background(AppColors.card)
+        .sheet(item: $renamingCase) { folder in
+            NavigationView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Rename case")
+                        .font(LuxuryTheme.sectionFont(size: 18))
+                        .foregroundColor(AppColors.textPrimary)
 
-    private var casesList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(CaseCategory.allCases, id: \.self) { category in
-                let casesInCategory = caseTreeViewModel.cases.filter { $0.category == category }
-                if !casesInCategory.isEmpty {
-                    Text(category.rawValue)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color("SidebarHeadingBlue"))
+                    TextField("Case name", text: $renameText)
+                        .font(LuxuryTheme.bodyFont(size: 15))
+                        .foregroundColor(AppColors.textPrimary)
+                        .padding(10)
+                        .background(LuxuryTheme.surfaceCard)
+                        .cornerRadius(10)
 
-                    ForEach(casesInCategory) { folder in
-                        Button(folder.title) {
-                            caseTreeViewModel.selectedCase = folder
+                    Text("Give this case a name that makes sense to you. Only you can see it.")
+                        .font(LuxuryTheme.bodyFont(size: 13))
+                        .foregroundColor(AppColors.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer()
+                }
+                .padding(20)
+                .background(AppColors.background)
+                .navigationTitle("Rename Case")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { renamingCase = nil }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            caseTreeViewModel.renameCase(id: folder.id, to: renameText)
+                            renamingCase = nil
                         }
-                        .font(.subheadline)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            caseTreeViewModel.selectedCase?.id == folder.id
-                                ? Color("GoldAccent").opacity(0.3)
-                                : Color.clear
-                        )
-                        .cornerRadius(6)
+                        .disabled(renameText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }
             }
         }
     }
 
-    @ViewBuilder
-    private var folderTreeSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Folders")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color("SidebarHeadingBlue"))
-
-            ForEach(CaseSubfolder.allCases, id: \.self) { subfolder in
-                FolderRowView(
-                    subfolder: subfolder,
-                    displayName: caseTreeViewModel.selectedCase.flatMap { caseTreeViewModel.folderDisplayName(caseId: $0.id, subfolder: subfolder) } ?? subfolder.rawValue,
-                    isSelected: caseTreeViewModel.selectedSubfolder == subfolder,
-                    onSelect: { caseTreeViewModel.selectedSubfolder = subfolder },
-                    onRename: caseTreeViewModel.selectedCase.flatMap { folder in
-                        { newName in caseTreeViewModel.setFolderDisplayName(caseId: folder.id, subfolder: subfolder, name: newName) }
-                    }
-                )
-            }
-        }
-        .padding(.bottom, 8)
+    private var invitedParticipantBanner: some View {
+        Text("You're contributing as an invited participant. You can upload evidence or record statements for this case.")
+            .font(LuxuryTheme.bodyFont(size: 12))
+            .foregroundColor(AppColors.textPrimary)
+            .multilineTextAlignment(.leading)
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LuxuryTheme.surfaceCard.opacity(0.8))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
     }
 
-    private var learningRow: some View {
-        Button {
-            showLearning = true
-        } label: {
+    // MARK: - Top: Search (text only — no decorative icon)
+    private var searchSection: some View {
+        TextField("Search cases", text: $searchText)
+            .font(LuxuryTheme.bodyFont(size: 14))
+            .foregroundColor(AppColors.textPrimary)
+            .padding(10)
+            .background(LuxuryTheme.surfaceCard)
+            .cornerRadius(8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+    }
+
+    // MARK: - Second: Cases list
+    private var casesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Cases")
+                .font(LuxuryTheme.sectionFont(size: 12))
+                .foregroundColor(AppColors.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color(red: 226/255, green: 232/255, blue: 240/255, opacity: 0.65))
+
+            let filtered = filteredCases
+            ForEach(filtered) { folder in
+                Button {
+                    workspace.selectCase(byFolder: folder)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "folder")
+                            .font(AppTypography.body)
+                            .foregroundColor(
+                                caseTreeViewModel.selectedCase?.id == folder.id
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary
+                            )
+                            .frame(width: 16, alignment: .center)
+                        Text(folder.title)
+                            .font(LuxuryTheme.bodyFont(size: 14))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .foregroundColor(AppColors.textPrimary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.6)
+                        .onEnded { _ in
+                            renamingCase = folder
+                            renameText = folder.title
+                        }
+                )
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    caseTreeViewModel.selectedCase?.id == folder.id
+                        ? Color(red: 59/255, green: 130/255, blue: 246/255, opacity: 0.12)
+                        : Color.clear
+                )
+                .cornerRadius(10)
+            }
+        }
+    }
+
+    private var filteredCases: [CaseFolder] {
+        var list = caseTreeViewModel.cases
+        if workspace.isInvitedParticipantMode, let id = workspace.invitedCaseId {
+            list = list.filter { $0.id == id }
+        }
+        let term = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if term.isEmpty { return list }
+        return list.filter { $0.title.lowercased().contains(term) }
+    }
+
+    // MARK: - Bottom: learning links (book, doc.text, clock only)
+    private var bottomSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            bottomSectionRow(systemName: "book", title: "Knowledge") {
+                showLearning = true
+            }
+            bottomSectionRow(systemName: "doc.text", title: "Legal Guides") {
+                showLearning = true
+            }
+            bottomSectionRow(systemName: "clock", title: "Learn Law") {
+                showLearning = true
+            }
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+    }
+
+    private func bottomSectionRow(systemName: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack(spacing: 8) {
-                Image(systemName: "book.fill")
-                    .font(.subheadline)
-                Text("Learning")
-                    .font(.subheadline)
+                Image(systemName: systemName)
+                    .font(AppTypography.body)
+                    .foregroundColor(AppColors.textPrimary)
+                    .frame(width: 16, alignment: .center)
+                Text(title)
+                    .font(LuxuryTheme.bodyFont(size: 14))
+                    .foregroundColor(AppColors.textPrimary)
             }
             .lineLimit(1)
             .truncationMode(.tail)
-            .foregroundColor(.white.opacity(0.9))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
-        .padding(.top, 4)
-        .padding(.bottom, 12)
-    }
-}
-
-// MARK: - Folder row with optional rename
-private struct FolderRowView: View {
-    let subfolder: CaseSubfolder
-    let displayName: String
-    let isSelected: Bool
-    let onSelect: () -> Void
-    var onRename: ((String) -> Void)?
-
-    @State private var showRenameAlert = false
-    @State private var renameText = ""
-
-    var body: some View {
-        Button(action: onSelect) {
-            Text(displayName)
-                .font(.subheadline)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundColor(isSelected ? Color("GoldAccent") : .white.opacity(0.9))
-                .padding(.leading, 20)
-                .padding(.trailing, 12)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .contextMenu {
-            if onRename != nil {
-                Button("Rename folder") {
-                    renameText = displayName
-                    showRenameAlert = true
-                }
-            }
-        }
-        .alert("Rename folder", isPresented: $showRenameAlert) {
-            TextField("Folder name", text: $renameText)
-            Button("Cancel", role: .cancel) {}
-            Button("Save") {
-                onRename?(renameText)
-            }
-        } message: {
-            Text("Enter a new name for this folder.")
-        }
+        .buttonStyle(.plain)
     }
 }
