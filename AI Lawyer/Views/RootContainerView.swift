@@ -1,16 +1,22 @@
 import SwiftUI
+import UIKit
 
-/// App root: **ZStack** shell — sidebar overlays from the left (not `HStack`); main content offsets when open.
+/// `VStack`: fixed `TopBarView` + `ZStack` where only main body slides (not the header). `ChatInputBar` is `safeAreaInset`.
 struct RootContainerView: View {
     @EnvironmentObject var subscriptionViewModel: SubscriptionViewModel
     @StateObject private var workspace = WorkspaceManager()
 
+    @AppStorage("isDarkMode") private var isDarkMode = true
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
     @AppStorage("hasAcceptedLegalDisclaimer") private var hasAcceptedLegalDisclaimer = false
 
     @State private var selectedWorkspaceItem: SidebarWorkspaceItem = .activeCase1
     @State private var showAddEvidenceSheet = false
     @State private var isSidebarOpen = true
+    /// `0` = fully open, `-sidebarWidth` = fully closed (matches drag math).
+    @State private var sidebarOffset: CGFloat = 0
+    @State private var sidebarDragStartOffset: CGFloat?
+    @State private var showHamburgerMenu = false
 
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var voiceRecorder = VoiceRecorder()
@@ -26,69 +32,110 @@ struct RootContainerView: View {
             } else if !hasAcceptedLegalDisclaimer {
                 LegalDisclaimerAcceptView(hasAcceptedLegalDisclaimer: $hasAcceptedLegalDisclaimer)
             } else {
-                ZStack(alignment: .leading) {
-                    Color.black
-                        .ignoresSafeArea()
+                VStack(spacing: 0) {
+                    TopBarView(showHamburgerMenu: $showHamburgerMenu)
 
-                    Group {
-                        VStack(spacing: 0) {
-                            MainContentView(
-                                selectedWorkspaceItem: $selectedWorkspaceItem,
-                                showAddEvidenceSheet: $showAddEvidenceSheet,
-                                isSidebarOpen: $isSidebarOpen,
-                                chatViewModel: chatViewModel
-                            )
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .ignoresSafeArea(.keyboard, edges: [])
-                            .scrollDismissesKeyboard(.interactively)
-                            .background(Color.black)
-                        }
+                    ZStack(alignment: .leading) {
+                        (isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
+
+                        MainContentView(
+                            selectedWorkspaceItem: $selectedWorkspaceItem,
+                            showAddEvidenceSheet: $showAddEvidenceSheet,
+                            showHamburgerMenu: $showHamburgerMenu,
+                            chatViewModel: chatViewModel
+                        )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .safeAreaInset(edge: .bottom, spacing: 0) {
-                            ChatInputBar(
-                                chatViewModel: chatViewModel,
-                                voiceRecorder: voiceRecorder,
-                                showFileImporter: $showFileImporter
-                            )
-                            .background(Color.black)
-                        }
-                    }
-                    .offset(x: isSidebarOpen ? sidebarWidth : 0)
-                    .animation(.easeInOut(duration: 0.25), value: isSidebarOpen)
+                        .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
+                        .ignoresSafeArea(.keyboard, edges: [])
+                        .scrollDismissesKeyboard(.interactively)
+                        .offset(x: sidebarWidth + sidebarOffset)
 
-                    if isSidebarOpen {
-                        HStack(spacing: 0) {
-                            Color.clear
-                                .frame(width: sidebarWidth)
-                            Color.black.opacity(0.35)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    withAnimation(.easeInOut(duration: 0.25)) {
+                        if sidebarOffset > -sidebarWidth {
+                            HStack(spacing: 0) {
+                                Color.clear
+                                    .frame(width: max(0, sidebarWidth + sidebarOffset))
+                                Color.black.opacity(0.35)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+                                            isSidebarOpen = false
+                                            sidebarOffset = -sidebarWidth
+                                        }
+                                    }
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .allowsHitTesting(true)
+                            .zIndex(1)
+                        }
+
+                        SidebarView(
+                            showAddEvidenceSheet: $showAddEvidenceSheet,
+                            selectedItem: $selectedWorkspaceItem
+                        )
+                        .frame(width: sidebarWidth)
+                        .offset(x: sidebarOffset)
+                        .ignoresSafeArea(edges: .vertical)
+                        .zIndex(2)
+
+                        Capsule()
+                            .fill(Color.gray.opacity(0.4))
+                            .frame(width: 4, height: 40)
+                            .position(
+                                x: max(16, min(sidebarWidth, sidebarOffset + sidebarWidth - 2)),
+                                y: UIScreen.main.bounds.height / 2
+                            )
+                            .allowsHitTesting(false)
+                            .zIndex(10)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 12)
+                            .onChanged { value in
+                                if sidebarDragStartOffset == nil {
+                                    sidebarDragStartOffset = sidebarOffset
+                                }
+                                let base = sidebarDragStartOffset!
+                                let proposed = base + value.translation.width
+                                sidebarOffset = min(0, max(-sidebarWidth, proposed))
+                                isSidebarOpen = sidebarOffset > -sidebarWidth / 2
+                            }
+                            .onEnded { value in
+                                sidebarDragStartOffset = nil
+                                let drag = value.translation.width
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+                                    if drag > 80 {
+                                        isSidebarOpen = true
+                                        sidebarOffset = 0
+                                    } else if drag < -80 {
                                         isSidebarOpen = false
+                                        sidebarOffset = -sidebarWidth
+                                    } else {
+                                        if sidebarOffset > -sidebarWidth / 2 {
+                                            isSidebarOpen = true
+                                            sidebarOffset = 0
+                                        } else {
+                                            isSidebarOpen = false
+                                            sidebarOffset = -sidebarWidth
+                                        }
                                     }
                                 }
-                        }
-                        .ignoresSafeArea()
-                        .zIndex(1)
-                    }
-
-                    SidebarView(
-                        showAddEvidenceSheet: $showAddEvidenceSheet,
-                        selectedItem: $selectedWorkspaceItem
+                            }
                     )
-                    .frame(width: sidebarWidth)
-                    .background(Color(.systemBackground))
-                    .offset(x: isSidebarOpen ? 0 : -sidebarWidth)
-                    .animation(.easeInOut(duration: 0.25), value: isSidebarOpen)
-                    .ignoresSafeArea(edges: .vertical)
-                    .zIndex(2)
-
-                    if !isSidebarOpen {
-                        sidebarReopenEdge
-                            .zIndex(3)
-                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
+                .ignoresSafeArea(edges: .bottom)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    ChatInputBar(
+                        chatViewModel: chatViewModel,
+                        voiceRecorder: voiceRecorder,
+                        showFileImporter: $showFileImporter
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+                    .background(Color.clear)
+                }
                 .environmentObject(workspace)
             }
         }
@@ -103,39 +150,5 @@ struct RootContainerView: View {
               url.pathComponents.count >= 2 else { return }
         let token = url.pathComponents[1]
         _ = workspace.applyInvitation(token: token)
-    }
-
-    /// ~36pt leading strip when sidebar is hidden (tap or swipe right to open).
-    private var sidebarReopenEdge: some View {
-        HStack(spacing: 0) {
-            VStack {
-                Spacer(minLength: 0)
-                Capsule()
-                    .fill(Color.gray.opacity(0.5))
-                    .frame(width: 6, height: 48)
-                Spacer(minLength: 0)
-            }
-            .frame(width: 36)
-            .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isSidebarOpen = true
-                }
-            }
-            .highPriorityGesture(
-                DragGesture(minimumDistance: 16)
-                    .onEnded { value in
-                        if value.translation.width > 40 {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                isSidebarOpen = true
-                            }
-                        }
-                    }
-            )
-            Spacer(minLength: 0)
-        }
-        .allowsHitTesting(true)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }

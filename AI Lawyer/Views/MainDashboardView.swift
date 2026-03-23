@@ -6,13 +6,69 @@ private func dismissKeyboard() {
     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 }
 
-/// Main workspace (top bar + scroll content). Sidebar is inline; `ChatInputBar` is a bottom `safeAreaInset` in `RootContainerView`.
+// MARK: - Fixed header (composed in `RootContainerView`; does not slide with sidebar)
+
+struct TopBarView: View {
+    @Binding var showHamburgerMenu: Bool
+    @AppStorage("isDarkMode") private var isDarkMode = true
+
+    private var panelBackground: Color { isDarkMode ? AppColors.darkBackground : AppColors.lightBackground }
+    private var primaryTextColor: Color { isDarkMode ? .white : .black }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Image("AppLogo")
+                    .renderingMode(.original)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 28, height: 28)
+
+                Text("Pocket Lawyer")
+                    .font(.headline)
+                    .foregroundColor(primaryTextColor)
+                    .lineLimit(1)
+
+                Spacer()
+
+                HamburgerMenuButton(showMenu: $showHamburgerMenu, tint: primaryTextColor)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Rectangle()
+                .fill(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.08))
+                .frame(height: 1)
+        }
+        .background(panelBackground)
+    }
+}
+
+private struct HamburgerMenuButton: View {
+    @Binding var showMenu: Bool
+    var tint: Color
+
+    var body: some View {
+        Button {
+            showMenu = true
+        } label: {
+            Image(systemName: "line.3.horizontal")
+                .font(.title2)
+                .foregroundColor(tint)
+                .frame(width: 36, height: 36)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// Main workspace body (scroll content only). Top bar lives in `RootContainerView`. `ChatInputBar` is a bottom `safeAreaInset` there.
 ///
-/// Memberwise initializer parameter order follows stored properties: `selectedWorkspaceItem`, `showAddEvidenceSheet`, `isSidebarOpen`, `chatViewModel` (`isSidebarOpen` before `chatViewModel`).
+/// Memberwise order: `selectedWorkspaceItem`, `showAddEvidenceSheet`, `showHamburgerMenu`, `chatViewModel`.
 struct MainContentView: View {
     @Binding var selectedWorkspaceItem: SidebarWorkspaceItem
     @Binding var showAddEvidenceSheet: Bool
-    @Binding var isSidebarOpen: Bool
+    @Binding var showHamburgerMenu: Bool
 
     @ObservedObject var chatViewModel: ChatViewModel
 
@@ -21,7 +77,6 @@ struct MainContentView: View {
     @EnvironmentObject var subscriptionViewModel: SubscriptionViewModel
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var showHamburgerMenu = false
     @State private var showLearning = false
     @State private var showLegalDisclaimer = false
     @State private var showPrivacyPolicy = false
@@ -38,9 +93,6 @@ struct MainContentView: View {
     private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
     private var conversationManager: ConversationManager { workspace.conversationManager }
     private var caseManager: CaseManager { workspace.caseManager }
-    private var panelBackground: Color { isDarkMode ? .black : Color(white: 0.95) }
-    private var primaryTextColor: Color { isDarkMode ? .white : .black }
-    private var secondaryTextColor: Color { isDarkMode ? .white.opacity(0.65) : .black.opacity(0.6) }
 
     private func shouldShowProModal() -> Bool {
         guard subscriptionViewModel.hasFullAccess == false else { return false }
@@ -67,22 +119,27 @@ struct MainContentView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
-
+        ZStack {
             WorkspacePromptView(selectedItem: selectedWorkspaceItem, isDarkMode: isDarkMode)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
                 .padding(.bottom, 12)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(panelBackground)
-        .overlay(alignment: .bottomLeading) {
-            ThemeModeToggleButton()
-                .padding(.leading, 16)
-                .padding(.bottom, 90)
-                .zIndex(5)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
+                .ignoresSafeArea(edges: .bottom)
+
+            VStack {
+                Spacer()
+
+                HStack {
+                    ThemeModeToggleButton()
+                        .padding(.leading, 20)
+                        .padding(.bottom, 105)
+
+                    Spacer()
+                }
+            }
         }
         .sheet(isPresented: $showAddEvidenceSheet) {
             AddEvidenceView()
@@ -179,52 +236,6 @@ struct MainContentView: View {
 
     }
 
-    private var topBar: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        isSidebarOpen.toggle()
-                    }
-                } label: {
-                    Image(systemName: "sidebar.left")
-                        .foregroundColor(.white)
-                        .padding()
-                }
-                .buttonStyle(.plain)
-
-                HStack(spacing: 10) {
-                    AppLogo(size: 28)
-                    Text("Pocket Lawyer")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(primaryTextColor)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .fixedSize(horizontal: true, vertical: false)
-                }
-                .layoutPriority(1)
-
-                Spacer(minLength: 0)
-
-                Button(action: { showHamburgerMenu = true }) {
-                    Image(systemName: "line.3.horizontal")
-                        .font(.title2)
-                        .foregroundColor(primaryTextColor)
-                        .frame(width: 36, height: 36)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Rectangle()
-                .fill(Color.white.opacity(0.06))
-                .frame(height: 1)
-        }
-        .background(panelBackground)
-    }
-
     private var brandBackgroundGradient: LinearGradient {
         let top = colorScheme == .dark
             ? Color(red: 28/255, green: 28/255, blue: 30/255)   // #1C1C1E
@@ -272,6 +283,7 @@ enum SidebarWorkspaceItem: String {
 struct SidebarView: View {
     @Binding var showAddEvidenceSheet: Bool
     @Binding var selectedItem: SidebarWorkspaceItem
+    @AppStorage("isDarkMode") private var isDarkMode = true
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -279,7 +291,7 @@ struct SidebarView: View {
                 HStack(spacing: 10) {
                     Text("Active Cases")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(isDarkMode ? .white : .black)
                         .lineLimit(1)
                         .truncationMode(.tail)
 
@@ -300,15 +312,15 @@ struct SidebarView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(Color.white.opacity(0.06))
+                .background(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
                 .cornerRadius(12)
 
                 Divider()
-                    .background(Color.white.opacity(0.08))
+                    .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
 
                 Text("LAW")
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(.gray)
+                    .foregroundColor(isDarkMode ? .gray : .secondary)
 
                 VStack(alignment: .leading, spacing: 10) {
                     sidebarItem(.trustLaw)
@@ -321,7 +333,7 @@ struct SidebarView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(Color.white.opacity(0.06))
+                .background(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
                 .cornerRadius(12)
             }
             .padding(.leading, 16)
@@ -329,6 +341,11 @@ struct SidebarView: View {
             .padding(.top, 16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(
+            isDarkMode
+                ? AppColors.darkBackground
+                : Color(red: 235/255, green: 235/255, blue: 240/255)
+        )
         .clipped()
     }
 
@@ -339,7 +356,8 @@ struct SidebarView: View {
             SidebarCaseRow(
                 title: item.rawValue,
                 subtitle: "Questions • Documents • Strategies",
-                isSelected: selectedItem == item
+                isSelected: selectedItem == item,
+                isDarkMode: isDarkMode
             )
         }
         .buttonStyle(.plain)
@@ -350,23 +368,24 @@ private struct SidebarCaseRow: View {
     let title: String
     let subtitle: String?
     var isSelected: Bool = false
+    let isDarkMode: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "folder")
-                .foregroundColor(AppColors.secondaryAccent)
+                .foregroundColor(AppColors.brandPurple.opacity(0.9))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(isDarkMode ? .white : .black)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .multilineTextAlignment(.leading)
 
                 Text(subtitle ?? "Unfiled Draft")
                     .font(.system(size: 11))
-                    .foregroundColor(Color.white.opacity(0.6))
+                    .foregroundColor(isDarkMode ? Color.white.opacity(0.65) : Color.black.opacity(0.55))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .multilineTextAlignment(.leading)
@@ -384,7 +403,11 @@ private struct SidebarCaseRow: View {
         .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(isSelected ? Color.white.opacity(0.08) : Color.clear)
+                .fill(
+                    isSelected
+                        ? (isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                        : Color.clear
+                )
         )
     }
 }
@@ -464,7 +487,7 @@ private struct WorkspacePromptView: View {
                 }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(isDarkMode ? Color.black : Color.white)
+        .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
     }
 
     private var davisVsMillerCaseCard: some View {

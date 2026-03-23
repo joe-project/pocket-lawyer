@@ -1,6 +1,14 @@
 import SwiftUI
 
 struct AppColors {
+    // MARK: Polished shell (soft gray light mode + logo purple accent)
+    static let darkBackground = Color.black
+    static let darkCard = Color(red: 28/255, green: 28/255, blue: 30/255)
+    static let lightBackground = Color(red: 235/255, green: 235/255, blue: 240/255)
+    static let lightCard = Color(red: 250/255, green: 250/255, blue: 252/255)
+    /// Logo-adjacent purple for strokes / highlights (does not replace asset-based `accent`)
+    static let brandPurple = Color(red: 155/255, green: 100/255, blue: 255/255)
+
     /// Main app background
     static let background = Color("AppBackground")
     /// Sidebar, cards, elevated surfaces
