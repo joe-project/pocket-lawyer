@@ -47,6 +47,7 @@ final class ChatViewModel: ObservableObject {
         conversationManager.$messages
             .receive(on: DispatchQueue.main)
             .sink { [weak self] messages in
+                print("🔥 ChatViewModel observed messages update:", messages.count)
                 self?.messages = messages.map { ChatMessage(from: $0) }
             }
             .store(in: &cancellables)

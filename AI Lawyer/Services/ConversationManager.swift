@@ -73,6 +73,14 @@ final class ConversationManager: ObservableObject {
 
     func addMessage(_ message: Message) {
         messages.append(message)
+        switch message.role {
+        case "user":
+            print("🔥 USER MESSAGE ADDED")
+        case "assistant":
+            print("🔥 AI RESPONSE ADDED:", message.content)
+        default:
+            print("🔥 MESSAGE ADDED [\(message.role)]")
+        }
         messageBatcher.addMessage(message)
         if messageBatcher.shouldProcessBatch() {
             let batch = messageBatcher.flushBatch()
@@ -117,6 +125,7 @@ final class ConversationManager: ObservableObject {
             attachmentContents: attachmentContents
         )
         addMessage(message)
+        print("🔥 submitUserContent user message count:", messages.count)
 
         // First user submission for this case: create initial CaseMemory, update it with the new info, mark progress, and enqueue reasoning.
         if let id = caseId, existingUserMessageCount == 0 {
@@ -158,6 +167,7 @@ final class ConversationManager: ObservableObject {
         }.value
         switch result {
         case .success(let (response, _, _)):
+            print("🔥 AI RESPONSE RECEIVED:", response)
             // Persist the AI response into the selected folder as a new version.
             let saved: (id: UUID, tag: ResponseTag)? = saveAssistantResponseIntoActiveFolder(
                 caseId: caseId,
@@ -184,6 +194,7 @@ final class ConversationManager: ObservableObject {
                 responseTag: saved?.tag
             )
             addMessage(assistantMessage)
+            print("🔥 getAIReply messages count after assistant append:", messages.count)
 
             NotificationCenter.default.post(
                 name: .contextualMonetizationAIInteraction,
