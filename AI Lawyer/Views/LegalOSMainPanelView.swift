@@ -89,73 +89,34 @@ private struct LegalOSChatPanel: View {
     @EnvironmentObject var conversationManager: ConversationManager
 
     var body: some View {
-        let selectionAnimDuration: Double = 0.18
-        let aiResponseTransition: AnyTransition = .opacity.combined(with: .move(edge: .bottom))
-
         let caseId = caseTreeViewModel.selectedCase?.id
         let fileId = caseTreeViewModel.selectedFileId
-        let selectedFile = caseTreeViewModel.selectedFile()
-        let messages: [ChatMessage] = {
-            let msgs = chatViewModel.messages
-                .filter { msg in
-                    guard let caseId else {
-                        return msg.caseId == nil && msg.fileId == nil
-                    }
-                    if let fileId {
-                        return msg.caseId == caseId && msg.fileId == fileId
-                    } else {
-                        return msg.caseId == caseId && msg.fileId == nil
-                    }
-                }
-                .map { msg in
-                    ChatMessage(
-                        id: msg.id,
-                        sender: msg.role == "user" ? .user : .ai,
-                        text: msg.content + (msg.attachmentNames.isEmpty ? "" : "\n(Attachments: \(msg.attachmentNames.joined(separator: ", ")))"),
-                        date: msg.timestamp,
-                        responseTag: msg.responseTag
-                    )
-                }
-
-            if msgs.isEmpty, let content = selectedFile?.content, !content.isEmpty {
-                return [
-                    ChatMessage(
-                        id: selectedFile?.id ?? UUID(),
-                        sender: .ai,
-                        text: content,
-                        date: selectedFile?.createdAt ?? Date(),
-                        responseTag: selectedFile?.responseTag
-                    )
-                ]
+        let messages = chatViewModel.messages.filter { msg in
+            guard let caseId else {
+                return msg.caseId == nil && msg.fileId == nil
             }
-            return msgs
-        }()
+            if let fileId {
+                return msg.caseId == caseId && msg.fileId == fileId
+            } else {
+                return msg.caseId == caseId && msg.fileId == nil
+            }
+        }
 
         return VStack(alignment: .leading, spacing: 12) {
-            Text("Message count: \(messages.count)")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(AppColors.textSecondary)
+            Text("DEBUG: message count = \(messages.count)")
+                .foregroundColor(.red)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if messages.isEmpty {
-                        VStack(spacing: 16) {
-                            Spacer(minLength: 90)
-                            AppLogo(size: 42)
-                                .opacity(0.2)
-
-                            Text("Select a file or ask a question")
-                                .font(LuxuryTheme.bodyFont(size: 15))
-                                .foregroundColor(AppColors.textSecondary.opacity(0.92))
-                                .multilineTextAlignment(.center)
-                            Spacer(minLength: 130)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 420)
+                        Text("No visible messages")
+                            .foregroundColor(.white)
                     } else {
-                        ForEach(messages.suffix(50)) { message in
-                            chatBubble(message, isUser: message.sender == .user)
-                                .id(message.id)
-                                .transition(message.sender == .ai ? aiResponseTransition : .identity)
+                        ForEach(messages) { message in
+                            Text(message.content)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.blue.opacity(0.3))
                         }
                     }
 
@@ -173,14 +134,12 @@ private struct LegalOSChatPanel: View {
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .id(caseTreeViewModel.selectedFileId?.uuidString ?? "none")
-            .animation(.easeInOut(duration: selectionAnimDuration), value: caseTreeViewModel.selectedFileId?.uuidString ?? "none")
-            .background(Color.red.opacity(0.2))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.green.opacity(0.2))
+            .border(Color.red)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.horizontal, 4)
-        .background(LuxuryTheme.surfaceCard)
-        .cornerRadius(20)
         .onChange(of: chatViewModel.messages.count) { _, count in
             print("UI RECEIVED MESSAGES:", count)
         }
