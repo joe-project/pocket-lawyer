@@ -10,7 +10,7 @@ struct PendingAttachment: Identifiable {
 
 @MainActor
 final class ChatViewModel: ObservableObject {
-    @Published var messages: [ChatMessage] = []
+    @Published var messages: [Message] = []
     @Published var inputText: String = ""
     @Published var isSending: Bool = false
     @Published var errorMessage: String?
@@ -46,11 +46,10 @@ final class ChatViewModel: ObservableObject {
     private func bindMessages() {
         conversationManager.$messages
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] messages in
+            .handleEvents(receiveOutput: { messages in
                 print("🔥 ChatViewModel observed messages update:", messages.count)
-                self?.messages = messages.map { ChatMessage(from: $0) }
-            }
-            .store(in: &cancellables)
+            })
+            .assign(to: &$messages)
     }
 
     /// Whether the user can send (has text and/or attachments and not currently sending).

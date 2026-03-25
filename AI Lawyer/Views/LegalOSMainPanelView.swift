@@ -94,19 +94,30 @@ private struct LegalOSChatPanel: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                    let caseId = caseTreeViewModel.selectedCase?.id
-                    let fileId = caseTreeViewModel.selectedFileId
-                    let selectedFile = caseTreeViewModel.selectedFile()
+                let caseId = caseTreeViewModel.selectedCase?.id
+                let fileId = caseTreeViewModel.selectedFileId
+                let selectedFile = caseTreeViewModel.selectedFile()
                 let messages: [ChatMessage] = {
-                        let msgs = conversationManager.messagesForCaseFile(caseId: caseId, fileId: fileId).map { msg in
-                            ChatMessage(
-                                id: msg.id,
-                                sender: msg.role == "user" ? .user : .ai,
-                                text: msg.content + (msg.attachmentNames.isEmpty ? "" : "\n(Attachments: \(msg.attachmentNames.joined(separator: ", ")))"),
-                                date: msg.timestamp,
-                                responseTag: msg.responseTag
-                            )
-                        }
+                        let msgs = chatViewModel.messages
+                            .filter { msg in
+                                guard let caseId else {
+                                    return msg.caseId == nil && msg.fileId == nil
+                                }
+                                if let fileId {
+                                    return msg.caseId == caseId && msg.fileId == fileId
+                                } else {
+                                    return msg.caseId == caseId && msg.fileId == nil
+                                }
+                            }
+                            .map { msg in
+                                ChatMessage(
+                                    id: msg.id,
+                                    sender: msg.role == "user" ? .user : .ai,
+                                    text: msg.content + (msg.attachmentNames.isEmpty ? "" : "\n(Attachments: \(msg.attachmentNames.joined(separator: ", ")))"),
+                                    date: msg.timestamp,
+                                    responseTag: msg.responseTag
+                                )
+                            }
 
                         // If we just rolled back / reopened state and the in-memory conversation doesn't contain
                         // messages for this file version, render the file's saved content as an AI message.

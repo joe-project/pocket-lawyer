@@ -474,9 +474,9 @@ struct CaseWorkspaceView: View {
 
     private func chatCard() -> some View {
         let caseId = workspace.selectedCaseId ?? caseTreeViewModel.selectedCase?.id
-        let messages = conversationManager.messages
+        let messages = chatViewModel.messages
             .filter { msg in
-                guard let caseId = caseId else { return false }
+                guard let caseId = caseId else { return msg.caseId == nil }
                 return msg.caseId == caseId
             }
             .map { msg in

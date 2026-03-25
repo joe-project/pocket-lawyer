@@ -545,7 +545,12 @@ struct ChatTranscriptView: View {
     /// Messages for the selected case from ConversationManager (typed, voice, and file messages stored as Message).
     private var displayMessages: [ChatMessage] {
         let caseId = caseTreeViewModel.selectedCase?.id
-        return conversationManager.messagesForCase(caseId: caseId).map { msg in
+        return chatViewModel.messages
+            .filter { msg in
+                guard let caseId else { return msg.caseId == nil }
+                return msg.caseId == caseId
+            }
+            .map { msg in
             var text = msg.content
             if !msg.attachmentNames.isEmpty {
                 text += "\n(Attachments: \(msg.attachmentNames.joined(separator: ", ")))"
