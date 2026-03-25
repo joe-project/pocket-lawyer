@@ -424,8 +424,8 @@ struct CaseWorkspaceView: View {
         .padding(LuxuryTheme.workspaceCardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .luxuryCard()
-        .onChange(of: chatViewModel.messages) { _, messages in
-            print("UI RECEIVED MESSAGES:", messages.count)
+        .onChange(of: chatViewModel.messages.count) { _, count in
+            print("UI RECEIVED MESSAGES:", count)
         }
     }
 
