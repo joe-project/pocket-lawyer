@@ -59,7 +59,7 @@ final class ChatViewModel: ObservableObject {
         return (hasText || hasAttachments) && !isSending
     }
 
-    func sendCurrentMessage() {
+    func sendCurrentMessage() {print("🔥 sendCurrentMessage CALLED")
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || !pendingAttachments.isEmpty else { return }
 

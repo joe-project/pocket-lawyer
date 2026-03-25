@@ -59,9 +59,10 @@ struct OpenAIService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await performRequest(request, label: "sendChat")
 
         guard let http = response as? HTTPURLResponse else {
             throw WorkerError.invalidResponse
@@ -95,9 +96,10 @@ struct OpenAIService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
         request.httpBody = try JSONEncoder().encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await performRequest(request, label: "sendWithCustomPrompt")
 
         guard let http = response as? HTTPURLResponse else {
             throw WorkerError.invalidResponse
@@ -139,6 +141,18 @@ struct OpenAIService {
         return WorkerRequest(systemPrompt: legalCaseIntakeSystemPrompt, context: context, messages: newMessages)
     }
 
+    private func performRequest(_ request: URLRequest, label: String) async throws -> (Data, URLResponse) {
+        logRequest(request, label: label)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            logResponse(data: data, response: response, label: label)
+            return (data, response)
+        } catch {
+            logError(error, request: request, label: label)
+            throw error
+        }
+    }
+
     private func parseAssistantContent(from data: Data) throws -> String {
         if let openAI = try? JSONDecoder().decode(OpenAICompatibilityResponse.self, from: data),
            let content = openAI.choices?.first?.message?.content {
@@ -151,6 +165,34 @@ struct OpenAIService {
             return alt.response.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         throw WorkerError.invalidResponse
+    }
+
+    private func logRequest(_ request: URLRequest, label: String) {
+        let bodyText: String
+        if let body = request.httpBody, let string = String(data: body, encoding: .utf8) {
+            bodyText = string
+        } else {
+            bodyText = "<empty>"
+        }
+
+        print("🌐 [OpenAIService:\(label)] Request URL: \(request.url?.absoluteString ?? "<nil>")")
+        print("🌐 [OpenAIService:\(label)] Timeout: \(request.timeoutInterval)s")
+        print("🌐 [OpenAIService:\(label)] Request Body: \(bodyText)")
+    }
+
+    private func logResponse(data: Data, response: URLResponse, label: String) {
+        let rawText = String(data: data, encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
+        if let http = response as? HTTPURLResponse {
+            print("🌐 [OpenAIService:\(label)] Response Status: \(http.statusCode)")
+        } else {
+            print("🌐 [OpenAIService:\(label)] Response Status: <non-http>")
+        }
+        print("🌐 [OpenAIService:\(label)] Raw Response: \(rawText)")
+    }
+
+    private func logError(_ error: Error, request: URLRequest, label: String) {
+        print("❌ [OpenAIService:\(label)] Request Failed: \(error.localizedDescription)")
+        print("❌ [OpenAIService:\(label)] URL: \(request.url?.absoluteString ?? "<nil>")")
     }
 }
 
