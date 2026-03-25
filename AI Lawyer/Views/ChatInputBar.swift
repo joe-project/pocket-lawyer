@@ -113,6 +113,14 @@ struct ChatInputBar: View {
         } message: {
             Text(voiceRecorder.errorMessage ?? "")
         }
+        .alert("Chat error", isPresented: Binding(
+            get: { chatViewModel.errorMessage != nil },
+            set: { if !$0 { chatViewModel.errorMessage = nil } }
+        )) {
+            Button("OK") { chatViewModel.errorMessage = nil }
+        } message: {
+            Text(chatViewModel.errorMessage ?? "")
+        }
     }
 }
 

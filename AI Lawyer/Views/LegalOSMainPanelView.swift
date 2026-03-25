@@ -97,8 +97,7 @@ private struct LegalOSChatPanel: View {
                     let caseId = caseTreeViewModel.selectedCase?.id
                     let fileId = caseTreeViewModel.selectedFileId
                     let selectedFile = caseTreeViewModel.selectedFile()
-                    let messages: [ChatMessage] = {
-                        guard let fileId else { return [] }
+                let messages: [ChatMessage] = {
                         let msgs = conversationManager.messagesForCaseFile(caseId: caseId, fileId: fileId).map { msg in
                             ChatMessage(
                                 id: msg.id,
@@ -240,4 +239,3 @@ private struct LegalOSDocumentPanel: View {
         }
     }
 }
-

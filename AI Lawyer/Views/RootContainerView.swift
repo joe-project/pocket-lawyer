@@ -18,7 +18,6 @@ struct RootContainerView: View {
     @State private var sidebarDragStartOffset: CGFloat?
     @State private var showHamburgerMenu = false
 
-    @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var voiceRecorder = VoiceRecorder()
     @State private var showFileImporter = false
 
@@ -42,7 +41,7 @@ struct RootContainerView: View {
                             selectedWorkspaceItem: $selectedWorkspaceItem,
                             showAddEvidenceSheet: $showAddEvidenceSheet,
                             showHamburgerMenu: $showHamburgerMenu,
-                            chatViewModel: chatViewModel
+                            chatViewModel: workspace.chatViewModel
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
@@ -128,7 +127,7 @@ struct RootContainerView: View {
                 .ignoresSafeArea(edges: .bottom)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     ChatInputBar(
-                        chatViewModel: chatViewModel,
+                        chatViewModel: workspace.chatViewModel,
                         voiceRecorder: voiceRecorder,
                         showFileImporter: $showFileImporter
                     )
@@ -137,6 +136,9 @@ struct RootContainerView: View {
                     .background(Color.clear)
                 }
                 .environmentObject(workspace)
+                .environmentObject(workspace.chatViewModel)
+                .environmentObject(workspace.conversationManager)
+                .environmentObject(workspace.caseManager)
             }
         }
         .onOpenURL { url in

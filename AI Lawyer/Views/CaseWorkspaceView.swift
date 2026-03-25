@@ -473,8 +473,13 @@ struct CaseWorkspaceView: View {
     // MARK: - Chat card
 
     private func chatCard() -> some View {
-        let caseId = caseTreeViewModel.selectedCase?.id
-        let messages = conversationManager.messagesForCase(caseId: caseId).map { msg in
+        let caseId = workspace.selectedCaseId ?? caseTreeViewModel.selectedCase?.id
+        let messages = conversationManager.messages
+            .filter { msg in
+                guard let caseId = caseId else { return false }
+                return msg.caseId == caseId
+            }
+            .map { msg in
             ChatMessage(
                 id: msg.id,
                 sender: msg.role == "user" ? .user : .ai,

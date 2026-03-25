@@ -10,6 +10,8 @@ final class WorkspaceManager: ObservableObject {
 
     let caseManager: CaseManager
     let conversationManager: ConversationManager
+    /// Bound to the same `conversationManager` instance; chat UI observes this.
+    let chatViewModel: ChatViewModel
     let caseReasoningEngine: CaseReasoningEngine
     let litigationStrategyEngine: LitigationStrategyEngine
     let caseConfidenceEngine: CaseConfidenceEngine
@@ -44,6 +46,7 @@ final class WorkspaceManager: ObservableObject {
         let damages: String
     }
     private var strategyUpdateSnapshots: [UUID: StrategyUpdateSnapshot] = [:]
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Init and wiring
 
@@ -64,6 +67,7 @@ final class WorkspaceManager: ObservableObject {
         self.caseTreeViewModel = caseTree
         self.caseManager = caseMgr
         self.conversationManager = conversation
+        self.chatViewModel = ChatViewModel(aiEngine: aiEngine, conversationManager: conversation)
         self.caseReasoningEngine = reasoningEngine
         self.litigationStrategyEngine = litigationEngine
         self.caseConfidenceEngine = confidenceEngine
@@ -73,11 +77,17 @@ final class WorkspaceManager: ObservableObject {
         self.evidenceAnalysisEngine = evidenceEngine
         self.legalResearchService = legalResearch
         self.caseCollaborationEngine = CaseCollaborationEngine()
+        self.chatViewModel.workspace = self
 
         conversationManager.caseManager = caseMgr
         conversationManager.caseTreeViewModel = caseTree
 
         selectedCaseId = caseTree.selectedCase?.id
+        caseTreeViewModel.$selectedCase
+            .sink { [weak self] selected in
+                self?.selectedCaseId = selected?.id
+            }
+            .store(in: &cancellables)
     }
 
     /// Selects a case by id. Updates selectedCaseId and syncs caseTreeViewModel.selectedCase so the sidebar and workspace show the same case.

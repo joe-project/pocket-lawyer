@@ -145,7 +145,6 @@ struct MainContentView: View {
             AddEvidenceView()
         }
         .onAppear {
-            chatViewModel.conversationManager = conversationManager
             chatViewModel.caseManager = caseManager
             chatViewModel.selectedCaseId = caseTreeViewModel.selectedCase?.id
             chatViewModel.selectedSubfolder = caseTreeViewModel.selectedSubfolder

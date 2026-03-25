@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>colors</key>
+	<array>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAppAccentPrimary</string>
+			<key>relativePath</key>
+			<string>./AppAccentPrimary.colorset</string>
+			<key>swiftSymbol</key>
+			<string>appAccentPrimary</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAppAccentSecondary</string>
+			<key>relativePath</key>
+			<string>./AppAccentSecondary.colorset</string>
+			<key>swiftSymbol</key>
+			<string>appAccentSecondary</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAppBackground</string>
+			<key>relativePath</key>
+			<string>./AppBackground.colorset</string>
+			<key>swiftSymbol</key>
+			<string>appBackground</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAppCard</string>
+			<key>relativePath</key>
+			<string>./AppCard.colorset</string>
+			<key>swiftSymbol</key>
+			<string>appCard</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAppCardStroke</string>
+			<key>relativePath</key>
+			<string>./AppCardStroke.colorset</string>
+			<key>swiftSymbol</key>
+			<string>appCardStroke</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAppDepth</string>
+			<key>relativePath</key>
+			<string>./AppDepth.colorset</string>
+			<key>swiftSymbol</key>
+			<string>appDepth</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAppSecondaryButton</string>
+			<key>relativePath</key>
+			<string>./AppSecondaryButton.colorset</string>
+			<key>swiftSymbol</key>
+			<string>appSecondaryButton</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAppTextPrimary</string>
+			<key>relativePath</key>
+			<string>./AppTextPrimary.colorset</string>
+			<key>swiftSymbol</key>
+			<string>appTextPrimary</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameAppTextSecondary</string>
+			<key>relativePath</key>
+			<string>./AppTextSecondary.colorset</string>
+			<key>swiftSymbol</key>
+			<string>appTextSecondary</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameBackgroundNavy</string>
+			<key>relativePath</key>
+			<string>./BackgroundNavy.colorset</string>
+			<key>swiftSymbol</key>
+			<string>backgroundNavy</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameGoldAccent</string>
+			<key>relativePath</key>
+			<string>./GoldAccent.colorset</string>
+			<key>swiftSymbol</key>
+			<string>goldAccent</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACColorNameSidebarHeadingBlue</string>
+			<key>relativePath</key>
+			<string>./SidebarHeadingBlue.colorset</string>
+			<key>swiftSymbol</key>
+			<string>sidebarHeadingBlue</string>
+		</dict>
+	</array>
+	<key>images</key>
+	<array>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACImageNameAppLogo</string>
+			<key>relativePath</key>
+			<string>./AppLogo.imageset</string>
+			<key>swiftSymbol</key>
+			<string>appLogo</string>
+		</dict>
+		<dict>
+			<key>catalogPath</key>
+			<string>/Users/user/Desktop/AI Lawyer/AI Lawyer/Assets.xcassets</string>
+			<key>objcSymbol</key>
+			<string>ACImageNamePocketLawLogo</string>
+			<key>relativePath</key>
+			<string>./PocketLawLogo.imageset</string>
+			<key>swiftSymbol</key>
+			<string>pocketLawLogo</string>
+		</dict>
+	</array>
+	<key>symbols</key>
+	<array/>
+</dict>
+</plist>

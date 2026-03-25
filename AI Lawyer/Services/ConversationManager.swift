@@ -140,7 +140,7 @@ final class ConversationManager: ObservableObject {
 
     /// Sends the last (user) message in the case to the AI with full conversation context, appends the assistant reply as a Message, and triggers CaseReasoningEngine via addMessage. If intakePaused is true, appends a follow-up message offering to resume intake and sets offeringResumeIntake. Call after addMessage(user Message). Attachment content is merged into the user message text for the API. Network call runs off the main actor; UI updates occur only when the response returns. Returns the AI response text or nil on failure.
     func getAIReply(caseId: UUID?, fileId: UUID?, targetSubfolder: CaseSubfolder? = nil, intakePaused: Bool = false) async -> String? {
-        let caseMessages = messagesForCaseFile(caseId: caseId, fileId: fileId)
+        let caseMessages = messagesForCase(caseId: caseId)
         guard let last = caseMessages.last, last.role == "user" else { return nil }
         let previous = Array(caseMessages.dropLast())
         let effectiveContent = effectiveUserContent(for: last)
@@ -314,7 +314,7 @@ final class ConversationManager: ObservableObject {
             content: "Would you like to continue with the intake interview? Tap “Resume intake” below or reply yes to continue.",
             timestamp: Date()
         )
-        messages.append(offerMessage)
+        addMessage(offerMessage)
         offeringResumeIntake = true
     }
 

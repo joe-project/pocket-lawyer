@@ -31,3 +31,12 @@ struct ChatMessage: Identifiable, Hashable {
         self.isDocumentOffer = isDocumentOffer
     }
 }
+
+extension ChatMessage {
+    init(from message: Message) {
+        self.init(
+            sender: message.role == "user" ? .user : .ai,
+            text: message.content
+        )
+    }
+}
