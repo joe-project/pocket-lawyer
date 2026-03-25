@@ -4,7 +4,7 @@ import UIKit
 /// `VStack`: fixed `TopBarView` + `ZStack` where only main body slides (not the header). `ChatInputBar` is `safeAreaInset`.
 struct RootContainerView: View {
     @EnvironmentObject var subscriptionViewModel: SubscriptionViewModel
-    @StateObject private var workspace = WorkspaceManager()
+    @EnvironmentObject var workspace: WorkspaceManager
 
     @AppStorage("isDarkMode") private var isDarkMode = true
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
@@ -27,7 +27,6 @@ struct RootContainerView: View {
         Group {
             if !hasSeenWelcome {
                 WelcomeView(hasSeenWelcome: $hasSeenWelcome)
-                    .environmentObject(workspace)
             } else if !hasAcceptedLegalDisclaimer {
                 LegalDisclaimerAcceptView(hasAcceptedLegalDisclaimer: $hasAcceptedLegalDisclaimer)
             } else {
@@ -135,10 +134,6 @@ struct RootContainerView: View {
                     .padding(.bottom, 6)
                     .background(Color.clear)
                 }
-                .environmentObject(workspace)
-                .environmentObject(workspace.chatViewModel)
-                .environmentObject(workspace.conversationManager)
-                .environmentObject(workspace.caseManager)
             }
         }
         .onOpenURL { url in

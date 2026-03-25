@@ -38,6 +38,7 @@ final class ChatViewModel: ObservableObject {
         aiEngine: AIEngine = .shared,
         conversationManager: ConversationManager
     ) {
+        print("🔥 ChatViewModel INIT:", ObjectIdentifier(self))
         self.aiEngine = aiEngine
         self.conversationManager = conversationManager
         bindMessages()

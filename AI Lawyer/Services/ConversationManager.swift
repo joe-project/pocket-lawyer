@@ -81,6 +81,7 @@ final class ConversationManager: ObservableObject {
         default:
             print("🔥 MESSAGE ADDED [\(message.role)]")
         }
+        print("MESSAGE CASE ID:", message.caseId?.uuidString ?? "nil")
         messageBatcher.addMessage(message)
         if messageBatcher.shouldProcessBatch() {
             let batch = messageBatcher.flushBatch()
