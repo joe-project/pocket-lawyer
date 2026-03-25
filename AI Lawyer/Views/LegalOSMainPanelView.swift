@@ -92,49 +92,52 @@ private struct LegalOSChatPanel: View {
         let selectionAnimDuration: Double = 0.18
         let aiResponseTransition: AnyTransition = .opacity.combined(with: .move(edge: .bottom))
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                let caseId = caseTreeViewModel.selectedCase?.id
-                let fileId = caseTreeViewModel.selectedFileId
-                let selectedFile = caseTreeViewModel.selectedFile()
-                let messages: [ChatMessage] = {
-                        let msgs = chatViewModel.messages
-                            .filter { msg in
-                                guard let caseId else {
-                                    return msg.caseId == nil && msg.fileId == nil
-                                }
-                                if let fileId {
-                                    return msg.caseId == caseId && msg.fileId == fileId
-                                } else {
-                                    return msg.caseId == caseId && msg.fileId == nil
-                                }
-                            }
-                            .map { msg in
-                                ChatMessage(
-                                    id: msg.id,
-                                    sender: msg.role == "user" ? .user : .ai,
-                                    text: msg.content + (msg.attachmentNames.isEmpty ? "" : "\n(Attachments: \(msg.attachmentNames.joined(separator: ", ")))"),
-                                    date: msg.timestamp,
-                                    responseTag: msg.responseTag
-                                )
-                            }
+        let caseId = caseTreeViewModel.selectedCase?.id
+        let fileId = caseTreeViewModel.selectedFileId
+        let selectedFile = caseTreeViewModel.selectedFile()
+        let messages: [ChatMessage] = {
+            let msgs = chatViewModel.messages
+                .filter { msg in
+                    guard let caseId else {
+                        return msg.caseId == nil && msg.fileId == nil
+                    }
+                    if let fileId {
+                        return msg.caseId == caseId && msg.fileId == fileId
+                    } else {
+                        return msg.caseId == caseId && msg.fileId == nil
+                    }
+                }
+                .map { msg in
+                    ChatMessage(
+                        id: msg.id,
+                        sender: msg.role == "user" ? .user : .ai,
+                        text: msg.content + (msg.attachmentNames.isEmpty ? "" : "\n(Attachments: \(msg.attachmentNames.joined(separator: ", ")))"),
+                        date: msg.timestamp,
+                        responseTag: msg.responseTag
+                    )
+                }
 
-                        // If we just rolled back / reopened state and the in-memory conversation doesn't contain
-                        // messages for this file version, render the file's saved content as an AI message.
-                        if msgs.isEmpty, let content = selectedFile?.content, !content.isEmpty {
-                            return [
-                                ChatMessage(
-                                    id: selectedFile?.id ?? UUID(),
-                                    sender: .ai,
-                                    text: content,
-                                    date: selectedFile?.createdAt ?? Date(),
-                                    responseTag: selectedFile?.responseTag
-                                )
-                            ]
-                        }
-                        return msgs
-                    }()
+            if msgs.isEmpty, let content = selectedFile?.content, !content.isEmpty {
+                return [
+                    ChatMessage(
+                        id: selectedFile?.id ?? UUID(),
+                        sender: .ai,
+                        text: content,
+                        date: selectedFile?.createdAt ?? Date(),
+                        responseTag: selectedFile?.responseTag
+                    )
+                ]
+            }
+            return msgs
+        }()
 
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Message count: \(messages.count)")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(AppColors.textSecondary)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
                     if messages.isEmpty {
                         VStack(spacing: 16) {
                             Spacer(minLength: 90)
@@ -166,11 +169,18 @@ private struct LegalOSChatPanel: View {
                         .buttonStyle(AppButtonStyle())
                         .padding(.top, 4)
                     }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .id(caseTreeViewModel.selectedFileId?.uuidString ?? "none")
             .animation(.easeInOut(duration: selectionAnimDuration), value: caseTreeViewModel.selectedFileId?.uuidString ?? "none")
+            .background(Color.red.opacity(0.2))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.horizontal, 4)
+        .background(LuxuryTheme.surfaceCard)
+        .cornerRadius(20)
         .onChange(of: chatViewModel.messages.count) { _, count in
             print("UI RECEIVED MESSAGES:", count)
         }
