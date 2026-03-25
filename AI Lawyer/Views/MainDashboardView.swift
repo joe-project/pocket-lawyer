@@ -609,6 +609,9 @@ struct ChatTranscriptView: View {
         .sheet(item: $upgradePromptToShow) { prompt in
             UpgradePromptSheet(prompt: prompt) { upgradePromptToShow = nil }
         }
+        .onChange(of: chatViewModel.messages) { _, messages in
+            print("UI RECEIVED MESSAGES:", messages.count)
+        }
     }
 
     @ViewBuilder

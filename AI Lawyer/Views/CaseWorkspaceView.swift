@@ -424,6 +424,9 @@ struct CaseWorkspaceView: View {
         .padding(LuxuryTheme.workspaceCardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .luxuryCard()
+        .onChange(of: chatViewModel.messages) { _, messages in
+            print("UI RECEIVED MESSAGES:", messages.count)
+        }
     }
 
     private func iconForTimelineKind(_ kind: TimelineEventKind) -> String {

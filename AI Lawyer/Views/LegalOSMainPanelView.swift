@@ -171,6 +171,9 @@ private struct LegalOSChatPanel: View {
             .animation(.easeInOut(duration: selectionAnimDuration), value: caseTreeViewModel.selectedFileId?.uuidString ?? "none")
         }
         .padding(.horizontal, 4)
+        .onChange(of: chatViewModel.messages) { _, messages in
+            print("UI RECEIVED MESSAGES:", messages.count)
+        }
     }
 
     private func chatBubble(_ message: ChatMessage, isUser: Bool) -> some View {
