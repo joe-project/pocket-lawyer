@@ -68,17 +68,34 @@ final class CaseTreeViewModel: ObservableObject {
 
     /// Creates a brand new case folder and selects it in the UI.
     @discardableResult
-    func createNewCase(title: String) -> UUID {
+    func createNewCase(title: String, category: CaseCategory = .inProgress) -> UUID {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = trimmed.isEmpty ? "New Case" : trimmed
         let id = UUID()
-        let folder = CaseFolder(id: id, title: name, category: .inProgress)
+        let folder = CaseFolder(id: id, title: name, category: category)
         cases.append(folder)
         selectedCase = folder
         selectedSubfolder = .evidence
         selectedFileId = nil
+        selectedWorkspaceSection = .overview
         save()
         return id
+    }
+
+    @discardableResult
+    func upsertTextFile(caseId: UUID, subfolder: CaseSubfolder, name: String, content: String) -> UUID? {
+        guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return nil }
+        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+
+        if let existingIndex = cases[idx].subfolders[subfolder]?.firstIndex(where: { $0.name == name }) {
+            let fileId = cases[idx].subfolders[subfolder]![existingIndex].id
+            updateFile(caseId: caseId, subfolder: subfolder, fileId: fileId, newName: name, newContent: content)
+            return fileId
+        }
+
+        let file = CaseFile(name: name, type: .note, relativePath: "", content: content)
+        addFile(caseId: caseId, subfolder: subfolder, file: file, content: content)
+        return file.id
     }
 
     func events(for caseId: UUID) -> [TimelineEvent] {

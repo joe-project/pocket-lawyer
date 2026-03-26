@@ -22,6 +22,7 @@ struct CaseWorkspaceView: View {
 
     private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
     private static let nextActionEngine = NextActionEngine()
+    private var selectedSection: CaseWorkspaceSection { caseTreeViewModel.selectedWorkspaceSection }
 
     var body: some View {
         Group {
@@ -34,52 +35,56 @@ struct CaseWorkspaceView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(alignment: .leading, spacing: LuxuryTheme.workspaceCardSpacing) {
-                            if let action = nextAction {
-                                nextActionCard(action)
-                            }
+                                if selectedSection == .overview {
+                                    if let action = nextAction {
+                                        nextActionCard(action)
+                                    }
 
-                            Group {
-                                if let brief = CaseBriefStore.shared.brief(for: state.caseId) {
-                                    CaseBriefCardView(brief: brief)
+                                    Group {
+                                        if let brief = CaseBriefStore.shared.brief(for: state.caseId) {
+                                            CaseBriefCardView(brief: brief)
+                                        } else {
+                                            CaseBriefView(analysis: analysis)
+                                        }
+                                    }
+                                    .id("brief")
+
+                                    CaseProgressView(progress: CaseProgressStore.shared.progress(for: state.caseId))
+                                        .id("progress")
+
+                                    SuggestedActionsCardView(
+                                        analysis: analysis,
+                                        onSuggestedAction: { section in
+                                            caseTreeViewModel.selectedWorkspaceSection = section
+                                            if let sub = section.documentSubfolder {
+                                                caseTreeViewModel.selectedSubfolder = sub
+                                            }
+                                            withAnimation(.easeInOut(duration: 0.25)) {
+                                                proxy.scrollTo(sectionAnchor(for: section), anchor: .top)
+                                            }
+                                        }
+                                    )
+                                    .id("actions")
+
+                                    EvidenceAlertsView(alerts: state.evidenceAlerts)
+                                    LegalArgumentsView(arguments: state.legalArguments)
+                                    timelineCard(caseId: state.caseId)
+                                        .id("timeline")
+                                    evidenceCard(caseId: state.caseId)
+                                        .id("evidence")
+                                    chatCard()
+                                        .id("chat")
                                 } else {
-                                    CaseBriefView(analysis: analysis)
+                                    focusedSectionCard(caseId: state.caseId, analysis: analysis)
+                                    sectionNotesCard(caseId: state.caseId)
+                                    chatCard()
+                                        .id("chat")
                                 }
                             }
-                            .id("brief")
-
-                            CaseProgressView(progress: CaseProgressStore.shared.progress(for: state.caseId))
-                                .id("progress")
-
-                            SuggestedActionsCardView(
-                                analysis: analysis,
-                                onSuggestedAction: { section in
-                                    if let sub = section.documentSubfolder {
-                                        caseTreeViewModel.selectedSubfolder = sub
-                                    }
-                                    withAnimation(.easeInOut(duration: 0.25)) {
-                                        proxy.scrollTo(sectionAnchor(for: section), anchor: .top)
-                                    }
-                                }
-                            )
-                            .id("actions")
-
-                            EvidenceAlertsView(alerts: state.evidenceAlerts)
-
-                            LegalArgumentsView(arguments: state.legalArguments)
-
-                            timelineCard(caseId: state.caseId)
-                                .id("timeline")
-
-                            evidenceCard(caseId: state.caseId)
-                                .id("evidence")
-
-                            chatCard()
-                                .id("chat")
+                            .padding(LuxuryTheme.workspaceCardSpacing)
                         }
-                        .padding(LuxuryTheme.workspaceCardSpacing)
                     }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .sheet(isPresented: $showInviteSheet) {
                     inviteParticipantSheet
@@ -424,9 +429,6 @@ struct CaseWorkspaceView: View {
         .padding(LuxuryTheme.workspaceCardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .luxuryCard()
-        .onChange(of: chatViewModel.messages.count) { _, count in
-            print("UI RECEIVED MESSAGES:", count)
-        }
     }
 
     private func iconForTimelineKind(_ kind: TimelineEventKind) -> String {
@@ -477,11 +479,7 @@ struct CaseWorkspaceView: View {
 
     private func chatCard() -> some View {
         let caseId = workspace.selectedCaseId ?? caseTreeViewModel.selectedCase?.id
-        let messages = chatViewModel.messages
-            .filter { msg in
-                guard let caseId = caseId else { return msg.caseId == nil }
-                return msg.caseId == caseId
-            }
+        let messages = sectionScopedMessages(for: caseId)
             .map { msg in
             ChatMessage(
                 id: msg.id,
@@ -524,6 +522,118 @@ struct CaseWorkspaceView: View {
         .padding(LuxuryTheme.workspaceCardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .luxuryCard()
+        .onAppear {
+            persistSectionNotesIfNeeded()
+        }
+        .onChange(of: chatViewModel.messages.count) { _, _ in
+            persistSectionNotesIfNeeded()
+        }
+    }
+
+    private func focusedSectionCard(caseId: UUID, analysis: CaseAnalysis) -> some View {
+        Group {
+            switch selectedSection {
+            case .timeline, .tasks, .deadlines:
+                timelineCard(caseId: caseId)
+            case .evidence:
+                evidenceCard(caseId: caseId)
+            case .documents:
+                documentsCard(caseId: caseId)
+            case .chat:
+                caseSummaryCard(analysis: analysis)
+            default:
+                caseSummaryCard(analysis: analysis)
+            }
+        }
+    }
+
+    private func caseSummaryCard(analysis: CaseAnalysis) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            WorkspaceCardHeader(icon: "📌", title: selectedSection.rawValue)
+            Text(analysis.summary.isEmpty ? "Open a case element from the sidebar to focus the workspace." : analysis.summary)
+                .font(LuxuryTheme.bodyFont(size: 15))
+                .foregroundColor(AppColors.textPrimary)
+        }
+        .padding(LuxuryTheme.workspaceCardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .luxuryCard()
+    }
+
+    private func documentsCard(caseId: UUID) -> some View {
+        let files = caseTreeViewModel.files(for: caseId, subfolder: .documents)
+        return VStack(alignment: .leading, spacing: 16) {
+            WorkspaceCardHeader(icon: "📄", title: "Documents")
+            if files.isEmpty {
+                Text("No documents yet for this case element.")
+                    .pocketSecondaryMonospaced(size: 14)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(files.prefix(10)) { file in
+                        Text(file.name)
+                            .pocketSecondaryMonospaced(size: 14)
+                    }
+                }
+            }
+        }
+        .padding(LuxuryTheme.workspaceCardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .luxuryCard()
+    }
+
+    private func sectionNotesCard(caseId: UUID) -> some View {
+        let summary = sectionNotesSummary(for: caseId)
+        return VStack(alignment: .leading, spacing: 14) {
+            WorkspaceCardHeader(icon: "📝", title: "\(selectedSection.rawValue) Notes")
+            if summary.isEmpty {
+                Text("Ask clarifying questions about this section and short bullet notes will appear here.")
+                    .pocketSecondaryMonospaced(size: 14)
+            } else {
+                Text(summary)
+                    .pocketSecondaryMonospaced(size: 14)
+                    .foregroundColor(AppColors.textPrimary)
+            }
+        }
+        .padding(LuxuryTheme.workspaceCardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .luxuryCard()
+    }
+
+    private func sectionScopedMessages(for caseId: UUID?) -> [Message] {
+        guard let caseId else { return chatViewModel.messages.filter { $0.caseId == nil } }
+        if selectedSection == .overview || selectedSection == .chat {
+            return chatViewModel.messages.filter { $0.caseId == caseId }
+        }
+        if let selectedFileId = caseTreeViewModel.selectedFileId {
+            return conversationManager.messagesForCaseFile(caseId: caseId, fileId: selectedFileId)
+        }
+        return conversationManager.messagesForCaseFile(caseId: caseId, fileId: nil)
+    }
+
+    private func sectionNotesSummary(for caseId: UUID) -> String {
+        let userMessages = sectionScopedMessages(for: caseId)
+            .filter { $0.role == "user" }
+            .map { $0.content.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        let bullets = userMessages.suffix(5).map { text in
+            let compact = text.replacingOccurrences(of: "\n", with: " ")
+            let trimmed = compact.count > 90 ? String(compact.prefix(90)) + "…" : compact
+            return "• \(trimmed)"
+        }
+        return bullets.joined(separator: "\n")
+    }
+
+    private func persistSectionNotesIfNeeded() {
+        guard selectedSection != .overview, selectedSection != .chat else { return }
+        guard let caseId = workspace.selectedCaseId ?? caseTreeViewModel.selectedCase?.id else { return }
+        let summary = sectionNotesSummary(for: caseId)
+        guard !summary.isEmpty else { return }
+        _ = caseTreeViewModel.upsertTextFile(
+            caseId: caseId,
+            subfolder: .history,
+            name: "\(selectedSection.rawValue) Notes",
+            content: summary
+        )
     }
 
     private func chatBubble(_ message: ChatMessage, isUser: Bool) -> some View {

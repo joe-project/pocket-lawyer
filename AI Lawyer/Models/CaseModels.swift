@@ -4,6 +4,7 @@ enum CaseCategory: String, CaseIterable, Identifiable, Codable {
     case potentialWinnings = "Potential Winnings"
     case inProgress = "Cases In Progress"
     case closed = "Cases Won"
+    case mockCases = "Mock Cases"
 
     var id: String { rawValue }
 }

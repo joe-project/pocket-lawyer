@@ -279,7 +279,21 @@ enum SidebarWorkspaceItem: String {
 struct SidebarView: View {
     @Binding var showAddEvidenceSheet: Bool
     @Binding var selectedItem: SidebarWorkspaceItem
+    @EnvironmentObject var workspace: WorkspaceManager
     @AppStorage("isDarkMode") private var isDarkMode = true
+    @State private var expandedCaseIds: Set<UUID> = []
+    @State private var newActiveCaseName = ""
+    @State private var newMockCaseName = ""
+    @State private var isAddingActiveCase = false
+    @State private var isAddingMockCase = false
+
+    private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
+    private var activeCases: [CaseFolder] {
+        caseTreeViewModel.cases.filter { $0.category != .mockCases }
+    }
+    private var mockCases: [CaseFolder] {
+        caseTreeViewModel.cases.filter { $0.category == .mockCases }
+    }
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -292,7 +306,8 @@ struct SidebarView: View {
                         .truncationMode(.tail)
 
                     Button {
-                        showAddEvidenceSheet = true
+                        isAddingActiveCase.toggle()
+                        if !isAddingActiveCase { newActiveCaseName = "" }
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .bold))
@@ -302,8 +317,20 @@ struct SidebarView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    sidebarItem(SidebarWorkspaceItem.activeCase1)
-                    sidebarItem(SidebarWorkspaceItem.activeCase3)
+                    ForEach(activeCases) { folder in
+                        caseFolderItem(folder)
+                    }
+                    if isAddingActiveCase {
+                        newCaseField(title: "New case name", text: $newActiveCaseName) {
+                            let id = caseTreeViewModel.createNewCase(title: newActiveCaseName, category: .inProgress)
+                            if let folder = caseTreeViewModel.cases.first(where: { $0.id == id }) {
+                                workspace.selectCase(byFolder: folder)
+                                expandedCaseIds.insert(id)
+                            }
+                            newActiveCaseName = ""
+                            isAddingActiveCase = false
+                        }
+                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -342,12 +369,37 @@ struct SidebarView: View {
                 Divider()
                     .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
 
-                Text("Mock Cases")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(isDarkMode ? .gray : .secondary)
+                HStack(spacing: 10) {
+                    Text("Mock Cases")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(isDarkMode ? .gray : .secondary)
+
+                    Button {
+                        isAddingMockCase.toggle()
+                        if !isAddingMockCase { newMockCaseName = "" }
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(AppColors.primaryAccent)
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    sidebarItem(.mockCases)
+                    ForEach(mockCases) { folder in
+                        caseFolderItem(folder)
+                    }
+                    if isAddingMockCase {
+                        newCaseField(title: "New mock case", text: $newMockCaseName) {
+                            let id = caseTreeViewModel.createNewCase(title: newMockCaseName, category: .mockCases)
+                            if let folder = caseTreeViewModel.cases.first(where: { $0.id == id }) {
+                                workspace.selectCase(byFolder: folder)
+                                expandedCaseIds.insert(id)
+                            }
+                            newMockCaseName = ""
+                            isAddingMockCase = false
+                        }
+                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -365,6 +417,11 @@ struct SidebarView: View {
                 : Color(red: 235/255, green: 235/255, blue: 240/255)
         )
         .clipped()
+        .onAppear {
+            if let selectedId = caseTreeViewModel.selectedCase?.id {
+                expandedCaseIds.insert(selectedId)
+            }
+        }
     }
 
     private func sidebarItem(_ item: SidebarWorkspaceItem) -> some View {
@@ -379,6 +436,106 @@ struct SidebarView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func caseFolderItem(_ folder: CaseFolder) -> some View {
+        let isExpanded = expandedCaseIds.contains(folder.id)
+        let isSelected = caseTreeViewModel.selectedCase?.id == folder.id
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    if isExpanded {
+                        expandedCaseIds.remove(folder.id)
+                    } else {
+                        expandedCaseIds.insert(folder.id)
+                    }
+                    workspace.selectCase(byFolder: folder)
+                    caseTreeViewModel.selectedWorkspaceSection = .overview
+                }
+            } label: {
+                SidebarCaseRow(
+                    title: folder.title,
+                    subtitle: "Questions • Documents • Strategies",
+                    isSelected: isSelected,
+                    isDarkMode: isDarkMode
+                )
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 6) {
+                    caseSectionItem("Overview", section: .overview, caseFolder: folder)
+                    caseSectionItem("Timeline", section: .timeline, caseFolder: folder)
+                    caseSectionItem("Evidence", section: .evidence, caseFolder: folder)
+                    caseSectionItem("Documents", section: .documents, caseFolder: folder)
+                    caseSectionItem("Tasks", section: .tasks, caseFolder: folder)
+                    caseSectionItem("Chat", section: .chat, caseFolder: folder)
+                }
+                .padding(.leading, 14)
+            }
+        }
+    }
+
+    private func caseSectionItem(_ title: String, section: CaseWorkspaceSection, caseFolder: CaseFolder) -> some View {
+        let isSelected = caseTreeViewModel.selectedCase?.id == caseFolder.id &&
+            caseTreeViewModel.selectedWorkspaceSection == section
+
+        return Button {
+            workspace.selectCase(byFolder: caseFolder)
+            caseTreeViewModel.selectedWorkspaceSection = section
+            syncSelection(for: section, caseFolder: caseFolder)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(AppColors.textSecondary)
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(isDarkMode ? .white : .black)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isSelected ? (isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.06)) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func syncSelection(for section: CaseWorkspaceSection, caseFolder: CaseFolder) {
+        switch section {
+        case .timeline, .tasks, .deadlines:
+            caseTreeViewModel.selectedSubfolder = .timeline
+            caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .timeline).max(by: { $0.createdAt < $1.createdAt })?.id
+        case .evidence:
+            caseTreeViewModel.selectedSubfolder = .evidence
+            caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .evidence).max(by: { $0.createdAt < $1.createdAt })?.id
+        case .documents:
+            caseTreeViewModel.selectedSubfolder = .documents
+            caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .documents).max(by: { $0.createdAt < $1.createdAt })?.id
+        case .history:
+            caseTreeViewModel.selectedSubfolder = .history
+            caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .history).max(by: { $0.createdAt < $1.createdAt })?.id
+        case .chat, .overview, .recordings, .emails:
+            caseTreeViewModel.selectedFileId = nil
+        }
+    }
+
+    private func newCaseField(title: String, text: Binding<String>, onSubmit: @escaping () -> Void) -> some View {
+        TextField(title, text: text)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(isDarkMode ? .white : .black)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
+            .cornerRadius(10)
+            .onSubmit {
+                guard !text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                onSubmit()
+            }
     }
 }
 

@@ -402,6 +402,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Pocket Lawyer";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record your story so the AI can analyze it and build your case, timeline, and documents.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcribe your voice into text so the AI can understand and assist with your case.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -438,6 +439,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Pocket Lawyer";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record your story so the AI can analyze it and build your case, timeline, and documents.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcribe your voice into text so the AI can understand and assist with your case.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
