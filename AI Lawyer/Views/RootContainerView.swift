@@ -22,8 +22,7 @@ struct RootContainerView: View {
     @State private var showFileImporter = false
 
     private let sidebarWidth: CGFloat = 300
-    private let sidebarHandleHitWidth: CGFloat = 28
-    private let sidebarHandleHitHeight: CGFloat = 120
+    private let sidebarHandleHitWidth: CGFloat = 44
 
     var body: some View {
         Group {
@@ -88,7 +87,8 @@ struct RootContainerView: View {
                             .zIndex(10)
 
                         Color.clear
-                            .frame(width: sidebarHandleHitWidth, height: sidebarHandleHitHeight)
+                            .frame(width: sidebarHandleHitWidth)
+                            .frame(maxHeight: .infinity)
                             .contentShape(Rectangle())
                             .position(
                                 x: max(16, min(sidebarWidth, sidebarOffset + sidebarWidth - 2)),
