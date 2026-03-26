@@ -21,7 +21,7 @@ final class CaseTreeViewModel: ObservableObject {
             seedSampleData()
             seedSampleTimeline()
         } else {
-            cases = loadedCases
+            cases = migrateLoadedCases(loadedCases)
             timelineEvents = loadedTimeline
             selectedCase = cases.first
         }
@@ -34,11 +34,37 @@ final class CaseTreeViewModel: ObservableObject {
 
     private func seedSampleData() {
         cases = [
-            CaseFolder(title: "Case #1", category: .inProgress),
-            CaseFolder(title: "Case 2 vs. [Defendant]", category: .closed),
-            CaseFolder(title: "Case 3 vs. [Defendant]", category: .inProgress)
+            CaseFolder(title: "Smith vs. Johnson", category: .inProgress)
         ]
         selectedCase = cases.first
+    }
+
+    private func migrateLoadedCases(_ loadedCases: [CaseFolder]) -> [CaseFolder] {
+        var updated = loadedCases
+
+        if let smithIndex = updated.firstIndex(where: { $0.title == "Smith vs Jones" }) {
+            updated[smithIndex].title = "Smith vs. Johnson"
+        }
+
+        if let smithTypoIndex = updated.firstIndex(where: { $0.title == "Smith vs Johson" }) {
+            updated[smithTypoIndex].title = "Smith vs. Johnson"
+        }
+
+        updated.removeAll { folder in
+            folder.title == "Brown vs State" || folder.title == "Davis vs Miller"
+        }
+
+        if let firstSmithIndex = updated.firstIndex(where: { $0.title == "Smith vs. Johnson" }) {
+            updated = updated.enumerated().filter { index, folder in
+                folder.title != "Smith vs. Johnson" || index == firstSmithIndex
+            }.map(\.element)
+        }
+
+        if updated.isEmpty {
+            return [CaseFolder(title: "Smith vs. Johnson", category: .inProgress)]
+        }
+
+        return updated
     }
 
     private func seedSampleTimeline() {

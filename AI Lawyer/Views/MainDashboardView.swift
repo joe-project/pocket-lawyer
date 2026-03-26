@@ -267,12 +267,10 @@ struct MainContentView: View {
 }
 
 enum SidebarWorkspaceItem: String {
-    case activeCase1 = "Smith vs Jones"
-    case activeCase3 = "Davis vs Miller"
+    case activeCase1 = "Smith vs. Johnson"
     case trustLaw = "Trust Law"
     case realEstate = "Real Estate"
     case credit = "Credit"
-    case marriageFamily = "Marriage & Family"
     case mockCases = "Mock Cases"
 }
 
@@ -281,11 +279,18 @@ struct SidebarView: View {
     @Binding var selectedItem: SidebarWorkspaceItem
     @EnvironmentObject var workspace: WorkspaceManager
     @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("law_research_folders_json") private var lawResearchFoldersJSON: String = "[\"Trust Law\",\"Real Estate\",\"Credit\"]"
     @State private var expandedCaseIds: Set<UUID> = []
     @State private var newActiveCaseName = ""
     @State private var newMockCaseName = ""
+    @State private var newResearchFolderName = ""
     @State private var isAddingActiveCase = false
     @State private var isAddingMockCase = false
+    @State private var isAddingResearchFolder = false
+    @State private var renameCaseTarget: UUID?
+    @State private var renameCaseName = ""
+    @State private var renameResearchTarget: String?
+    @State private var renameResearchName = ""
 
     private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
     private var activeCases: [CaseFolder] {
@@ -293,6 +298,13 @@ struct SidebarView: View {
     }
     private var mockCases: [CaseFolder] {
         caseTreeViewModel.cases.filter { $0.category == .mockCases }
+    }
+    private var lawResearchFolders: [String] {
+        let decoded = (try? JSONDecoder().decode([String].self, from: Data(lawResearchFoldersJSON.utf8))) ?? ["Trust Law", "Real Estate", "Credit"]
+        let cleaned = decoded
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && $0 != "Marriage & Family" }
+        return cleaned.isEmpty ? ["Trust Law", "Real Estate", "Credit"] : cleaned
     }
 
     var body: some View {
@@ -341,12 +353,13 @@ struct SidebarView: View {
                     .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
 
                 HStack(spacing: 10) {
-                    Text("LAW and Research")
+                    Text("Law & Research")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(isDarkMode ? .gray : .secondary)
 
                     Button {
-                        showAddEvidenceSheet = true
+                        isAddingResearchFolder.toggle()
+                        if !isAddingResearchFolder { newResearchFolderName = "" }
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 16, weight: .bold))
@@ -356,10 +369,18 @@ struct SidebarView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    sidebarItem(.trustLaw)
-                    sidebarItem(.realEstate)
-                    sidebarItem(.credit)
-                    sidebarItem(.marriageFamily)
+                    ForEach(lawResearchFolders, id: \.self) { folderName in
+                        researchFolderItem(folderName)
+                    }
+                    if isAddingResearchFolder {
+                        newCaseField(title: "New research folder", text: $newResearchFolderName) {
+                            let trimmed = newResearchFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { return }
+                            updateLawResearchFolders(lawResearchFolders + [trimmed])
+                            newResearchFolderName = ""
+                            isAddingResearchFolder = false
+                        }
+                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -421,6 +442,10 @@ struct SidebarView: View {
             if let selectedId = caseTreeViewModel.selectedCase?.id {
                 expandedCaseIds.insert(selectedId)
             }
+            let sanitized = Array(lawResearchFolders.prefix(3))
+            if sanitized != lawResearchFolders {
+                updateLawResearchFolders(sanitized)
+            }
         }
     }
 
@@ -462,6 +487,12 @@ struct SidebarView: View {
                 )
             }
             .buttonStyle(.plain)
+            .contextMenu {
+                Button("Rename") {
+                    renameCaseTarget = folder.id
+                    renameCaseName = folder.title
+                }
+            }
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 6) {
@@ -471,6 +502,15 @@ struct SidebarView: View {
                     caseSectionItem("Documents", section: .documents, caseFolder: folder)
                     caseSectionItem("Tasks", section: .tasks, caseFolder: folder)
                     caseSectionItem("Chat", section: .chat, caseFolder: folder)
+                    if renameCaseTarget == folder.id {
+                        newCaseField(title: "Rename case", text: $renameCaseName) {
+                            let trimmed = renameCaseName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { return }
+                            caseTreeViewModel.renameCase(id: folder.id, to: trimmed)
+                            renameCaseTarget = nil
+                            renameCaseName = ""
+                        }
+                    }
                 }
                 .padding(.leading, 14)
             }
@@ -536,6 +576,47 @@ struct SidebarView: View {
                 guard !text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
                 onSubmit()
             }
+    }
+
+    private func researchFolderItem(_ name: String) -> some View {
+        let isRenaming = renameResearchTarget == name
+        return VStack(alignment: .leading, spacing: 6) {
+            Button {
+                selectedItem = .trustLaw
+            } label: {
+                SidebarCaseRow(
+                    title: name,
+                    subtitle: "Questions • Documents • Strategies",
+                    isSelected: false,
+                    isDarkMode: isDarkMode
+                )
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                Button("Rename") {
+                    renameResearchTarget = name
+                    renameResearchName = name
+                }
+            }
+
+            if isRenaming {
+                newCaseField(title: "Rename folder", text: $renameResearchName) {
+                    let trimmed = renameResearchName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    let updated = lawResearchFolders.map { $0 == name ? trimmed : $0 }
+                    updateLawResearchFolders(updated)
+                    renameResearchTarget = nil
+                    renameResearchName = ""
+                }
+            }
+        }
+    }
+
+    private func updateLawResearchFolders(_ folders: [String]) {
+        let cleaned = folders.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        if let data = try? JSONEncoder().encode(cleaned), let json = String(data: data, encoding: .utf8) {
+            lawResearchFoldersJSON = json
+        }
     }
 }
 
@@ -636,18 +717,14 @@ private struct WorkspacePromptView: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(isDarkMode ? .white : .black)
 
-                if selectedItem == .activeCase3 {
-                    davisVsMillerCaseCard
-                } else {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("• Build a mock case")
-                        Text("• Ask a question")
-                        Text("• Build a document")
-                    }
-                    .font(.system(size: 14, weight: .regular, design: .monospaced))
-                    .foregroundColor(.gray)
-                    .lineSpacing(4)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("• Build a mock case")
+                    Text("• Ask a question")
+                    Text("• Build a document")
                 }
+                .font(.system(size: 14, weight: .regular, design: .monospaced))
+                .foregroundColor(.gray)
+                .lineSpacing(4)
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(16)

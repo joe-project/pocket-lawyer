@@ -73,6 +73,7 @@ struct RootContainerView: View {
                         )
                         .frame(width: sidebarWidth)
                         .offset(x: sidebarOffset)
+                        .simultaneousGesture(sidebarCloseDragGesture)
                         .ignoresSafeArea(edges: .vertical)
                         .zIndex(2)
 
@@ -154,6 +155,34 @@ struct RootContainerView: View {
                     } else {
                         isSidebarOpen = false
                         sidebarOffset = -sidebarWidth
+                    }
+                }
+            }
+    }
+
+    private var sidebarCloseDragGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                guard sidebarOffset > -sidebarWidth else { return }
+                guard value.translation.width < 0 else { return }
+                if sidebarDragStartOffset == nil {
+                    sidebarDragStartOffset = sidebarOffset
+                }
+                let base = sidebarDragStartOffset!
+                let proposed = base + value.translation.width
+                sidebarOffset = min(0, max(-sidebarWidth, proposed))
+                isSidebarOpen = sidebarOffset > -sidebarWidth / 2
+            }
+            .onEnded { value in
+                guard sidebarDragStartOffset != nil else { return }
+                sidebarDragStartOffset = nil
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+                    if value.translation.width < -60 {
+                        isSidebarOpen = false
+                        sidebarOffset = -sidebarWidth
+                    } else {
+                        isSidebarOpen = true
+                        sidebarOffset = 0
                     }
                 }
             }

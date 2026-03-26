@@ -26,16 +26,18 @@ struct CaseWorkspaceView: View {
 
     var body: some View {
         Group {
-            if let state = workspace.currentCaseState, let analysis = state.analysis {
+            if let state = workspace.currentCaseState {
                 VStack(spacing: 0) {
-                    caseCommandBar(onNextAction: fetchNextAction)
+                    if state.analysis != nil {
+                        caseCommandBar(onNextAction: fetchNextAction)
+                    }
                     if isAnalyzing(caseId: state.caseId) {
                         analyzingBanner
                     }
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(alignment: .leading, spacing: LuxuryTheme.workspaceCardSpacing) {
-                                if selectedSection == .overview {
+                                if let analysis = state.analysis, selectedSection == .overview {
                                     if let action = nextAction {
                                         nextActionCard(action)
                                     }
@@ -74,11 +76,13 @@ struct CaseWorkspaceView: View {
                                         .id("evidence")
                                     chatCard()
                                         .id("chat")
-                                } else {
+                                } else if let analysis = state.analysis {
                                     focusedSectionCard(caseId: state.caseId, analysis: analysis)
                                     sectionNotesCard(caseId: state.caseId)
                                     chatCard()
                                         .id("chat")
+                                } else {
+                                    blankSectionWorkspace(caseId: state.caseId)
                                 }
                             }
                             .padding(LuxuryTheme.workspaceCardSpacing)
@@ -178,6 +182,28 @@ struct CaseWorkspaceView: View {
         } message: {
             Text(voiceRecorder.errorMessage ?? "")
         }
+    }
+
+    private func blankSectionWorkspace(caseId: UUID) -> some View {
+        VStack(alignment: .leading, spacing: LuxuryTheme.workspaceCardSpacing) {
+            blankSectionCard(title: selectedSection.rawValue)
+            if selectedSection != .overview {
+                blankSectionCard(title: "\(selectedSection.rawValue) Notes")
+                chatCard()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func blankSectionCard(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            WorkspaceCardHeader(icon: "◻︎", title: title)
+            Color.clear
+                .frame(maxWidth: .infinity, minHeight: 180)
+        }
+        .padding(LuxuryTheme.workspaceCardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .luxuryCard()
     }
 
     private func isAnalyzing(caseId: UUID) -> Bool {
