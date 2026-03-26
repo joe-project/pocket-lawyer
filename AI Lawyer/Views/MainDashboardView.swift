@@ -120,7 +120,7 @@ struct MainContentView: View {
 
     var body: some View {
         ZStack {
-            WorkspacePromptView(selectedItem: selectedWorkspaceItem, isDarkMode: isDarkMode)
+            CaseWorkspaceView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
