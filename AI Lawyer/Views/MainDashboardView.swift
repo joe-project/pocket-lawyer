@@ -267,11 +267,13 @@ struct MainContentView: View {
 }
 
 enum SidebarWorkspaceItem: String {
-    case activeCase1 = "Smith vs. Johnson"
+    case generalLawQuestions = "General Law Questions"
+    case exampleCase = "Jones vs. Smith (Example Case)"
     case trustLaw = "Trust Law"
-    case realEstate = "Real Estate"
-    case credit = "Credit"
-    case mockCases = "Mock Cases"
+    case civilLaw = "Civil Law"
+    case realEstateLaw = "Real Estate Law"
+    case familyTrustDocuments = "Family Trust Documents"
+    case dufffVsBanks = "Dufff Vs. Banks"
 }
 
 struct SidebarView: View {
@@ -279,47 +281,47 @@ struct SidebarView: View {
     @Binding var selectedItem: SidebarWorkspaceItem
     @EnvironmentObject var workspace: WorkspaceManager
     @AppStorage("isDarkMode") private var isDarkMode = true
-    @AppStorage("law_research_folders_json") private var lawResearchFoldersJSON: String = "[\"Trust Law\",\"Real Estate\",\"Credit\"]"
     @State private var expandedCaseIds: Set<UUID> = []
-    @State private var newActiveCaseName = ""
-    @State private var newMockCaseName = ""
-    @State private var newResearchFolderName = ""
-    @State private var isAddingActiveCase = false
-    @State private var isAddingMockCase = false
-    @State private var isAddingResearchFolder = false
+    @State private var newPrimaryFolderName = ""
+    @State private var newSecondaryFolderName = ""
+    @State private var isAddingPrimaryFolder = false
+    @State private var isAddingSecondaryFolder = false
     @State private var renameCaseTarget: UUID?
     @State private var renameCaseName = ""
-    @State private var renameResearchTarget: String?
-    @State private var renameResearchName = ""
 
     private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
-    private var activeCases: [CaseFolder] {
-        caseTreeViewModel.cases.filter { $0.category != .mockCases }
+    private let primarySectionOrder = [
+        "General Law Questions",
+        "Jones vs. Smith (Example Case)",
+        "Trust Law",
+        "Civil Law",
+        "Real Estate Law"
+    ]
+    private let secondarySectionOrder = [
+        "Family Trust Documents",
+        "Dufff Vs. Banks"
+    ]
+
+    private var casesAndResearchFolders: [CaseFolder] {
+        sortFolders(caseTreeViewModel.cases.filter { $0.category == .inProgress }, using: primarySectionOrder)
     }
-    private var mockCases: [CaseFolder] {
-        caseTreeViewModel.cases.filter { $0.category == .mockCases }
-    }
-    private var lawResearchFolders: [String] {
-        let decoded = (try? JSONDecoder().decode([String].self, from: Data(lawResearchFoldersJSON.utf8))) ?? ["Trust Law", "Real Estate", "Credit"]
-        let cleaned = decoded
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty && $0 != "Marriage & Family" }
-        return cleaned.isEmpty ? ["Trust Law", "Real Estate", "Credit"] : cleaned
+    private var myCasesAndVitalDocumentsFolders: [CaseFolder] {
+        sortFolders(caseTreeViewModel.cases.filter { $0.category == .mockCases }, using: secondarySectionOrder)
     }
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 10) {
-                    Text("Active Cases")
+                    Text("Cases & Research")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(isDarkMode ? .white : .black)
                         .lineLimit(1)
                         .truncationMode(.tail)
 
                     Button {
-                        isAddingActiveCase.toggle()
-                        if !isAddingActiveCase { newActiveCaseName = "" }
+                        isAddingPrimaryFolder.toggle()
+                        if !isAddingPrimaryFolder { newPrimaryFolderName = "" }
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .bold))
@@ -329,18 +331,18 @@ struct SidebarView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    ForEach(activeCases) { folder in
+                    ForEach(casesAndResearchFolders) { folder in
                         caseFolderItem(folder)
                     }
-                    if isAddingActiveCase {
-                        newCaseField(title: "New case name", text: $newActiveCaseName) {
-                            let id = caseTreeViewModel.createNewCase(title: newActiveCaseName, category: .inProgress)
+                    if isAddingPrimaryFolder {
+                        newCaseField(title: "New folder name", text: $newPrimaryFolderName) {
+                            let id = caseTreeViewModel.createNewCase(title: newPrimaryFolderName, category: .inProgress)
                             if let folder = caseTreeViewModel.cases.first(where: { $0.id == id }) {
                                 workspace.selectCase(byFolder: folder)
                                 expandedCaseIds.insert(id)
                             }
-                            newActiveCaseName = ""
-                            isAddingActiveCase = false
+                            newPrimaryFolderName = ""
+                            isAddingPrimaryFolder = false
                         }
                     }
                 }
@@ -353,13 +355,13 @@ struct SidebarView: View {
                     .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
 
                 HStack(spacing: 10) {
-                    Text("Law & Research")
+                    Text("My Cases & Vital Documents")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(isDarkMode ? .gray : .secondary)
 
                     Button {
-                        isAddingResearchFolder.toggle()
-                        if !isAddingResearchFolder { newResearchFolderName = "" }
+                        isAddingSecondaryFolder.toggle()
+                        if !isAddingSecondaryFolder { newSecondaryFolderName = "" }
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 16, weight: .bold))
@@ -369,56 +371,18 @@ struct SidebarView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    ForEach(lawResearchFolders, id: \.self) { folderName in
-                        researchFolderItem(folderName)
-                    }
-                    if isAddingResearchFolder {
-                        newCaseField(title: "New research folder", text: $newResearchFolderName) {
-                            let trimmed = newResearchFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !trimmed.isEmpty else { return }
-                            updateLawResearchFolders(lawResearchFolders + [trimmed])
-                            newResearchFolderName = ""
-                            isAddingResearchFolder = false
-                        }
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
-                .cornerRadius(12)
-
-                Divider()
-                    .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
-
-                HStack(spacing: 10) {
-                    Text("Mock Cases")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(isDarkMode ? .gray : .secondary)
-
-                    Button {
-                        isAddingMockCase.toggle()
-                        if !isAddingMockCase { newMockCaseName = "" }
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(AppColors.primaryAccent)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(mockCases) { folder in
+                    ForEach(myCasesAndVitalDocumentsFolders) { folder in
                         caseFolderItem(folder)
                     }
-                    if isAddingMockCase {
-                        newCaseField(title: "New mock case", text: $newMockCaseName) {
-                            let id = caseTreeViewModel.createNewCase(title: newMockCaseName, category: .mockCases)
+                    if isAddingSecondaryFolder {
+                        newCaseField(title: "New folder name", text: $newSecondaryFolderName) {
+                            let id = caseTreeViewModel.createNewCase(title: newSecondaryFolderName, category: .mockCases)
                             if let folder = caseTreeViewModel.cases.first(where: { $0.id == id }) {
                                 workspace.selectCase(byFolder: folder)
                                 expandedCaseIds.insert(id)
                             }
-                            newMockCaseName = ""
-                            isAddingMockCase = false
+                            newSecondaryFolderName = ""
+                            isAddingSecondaryFolder = false
                         }
                     }
                 }
@@ -442,9 +406,9 @@ struct SidebarView: View {
             if let selectedId = caseTreeViewModel.selectedCase?.id {
                 expandedCaseIds.insert(selectedId)
             }
-            let sanitized = Array(lawResearchFolders.prefix(3))
-            if sanitized != lawResearchFolders {
-                updateLawResearchFolders(sanitized)
+            if let generalFolder = caseTreeViewModel.cases.first(where: { $0.title == SidebarWorkspaceItem.generalLawQuestions.rawValue }) {
+                workspace.selectCase(byFolder: generalFolder)
+                expandedCaseIds.insert(generalFolder.id)
             }
         }
     }
@@ -578,44 +542,15 @@ struct SidebarView: View {
             }
     }
 
-    private func researchFolderItem(_ name: String) -> some View {
-        let isRenaming = renameResearchTarget == name
-        return VStack(alignment: .leading, spacing: 6) {
-            Button {
-                selectedItem = .trustLaw
-            } label: {
-                SidebarCaseRow(
-                    title: name,
-                    subtitle: "Questions • Documents • Strategies",
-                    isSelected: false,
-                    isDarkMode: isDarkMode
-                )
+    private func sortFolders(_ folders: [CaseFolder], using preferredOrder: [String]) -> [CaseFolder] {
+        let lookup = Dictionary(uniqueKeysWithValues: preferredOrder.enumerated().map { ($1, $0) })
+        return folders.sorted { lhs, rhs in
+            let leftIndex = lookup[lhs.title] ?? Int.max
+            let rightIndex = lookup[rhs.title] ?? Int.max
+            if leftIndex == rightIndex {
+                return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
             }
-            .buttonStyle(.plain)
-            .contextMenu {
-                Button("Rename") {
-                    renameResearchTarget = name
-                    renameResearchName = name
-                }
-            }
-
-            if isRenaming {
-                newCaseField(title: "Rename folder", text: $renameResearchName) {
-                    let trimmed = renameResearchName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    let updated = lawResearchFolders.map { $0 == name ? trimmed : $0 }
-                    updateLawResearchFolders(updated)
-                    renameResearchTarget = nil
-                    renameResearchName = ""
-                }
-            }
-        }
-    }
-
-    private func updateLawResearchFolders(_ folders: [String]) {
-        let cleaned = folders.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        if let data = try? JSONEncoder().encode(cleaned), let json = String(data: data, encoding: .utf8) {
-            lawResearchFoldersJSON = json
+            return leftIndex < rightIndex
         }
     }
 }

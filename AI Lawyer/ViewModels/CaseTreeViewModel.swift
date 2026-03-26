@@ -23,7 +23,7 @@ final class CaseTreeViewModel: ObservableObject {
         } else {
             cases = migrateLoadedCases(loadedCases)
             timelineEvents = loadedTimeline
-            selectedCase = cases.first
+            selectedCase = cases.first(where: { $0.title == "General Law Questions" }) ?? cases.first
         }
         save()
     }
@@ -34,9 +34,15 @@ final class CaseTreeViewModel: ObservableObject {
 
     private func seedSampleData() {
         cases = [
-            CaseFolder(title: "Smith vs. Johnson", category: .inProgress)
+            CaseFolder(title: "General Law Questions", category: .inProgress),
+            CaseFolder(title: "Jones vs. Smith (Example Case)", category: .inProgress),
+            CaseFolder(title: "Trust Law", category: .inProgress),
+            CaseFolder(title: "Civil Law", category: .inProgress),
+            CaseFolder(title: "Real Estate Law", category: .inProgress),
+            CaseFolder(title: "Family Trust Documents", category: .mockCases),
+            CaseFolder(title: "Dufff Vs. Banks", category: .mockCases)
         ]
-        selectedCase = cases.first
+        selectedCase = cases.first(where: { $0.title == "General Law Questions" }) ?? cases.first
     }
 
     private func migrateLoadedCases(_ loadedCases: [CaseFolder]) -> [CaseFolder] {
@@ -54,14 +60,41 @@ final class CaseTreeViewModel: ObservableObject {
             folder.title == "Brown vs State" || folder.title == "Davis vs Miller"
         }
 
-        if let firstSmithIndex = updated.firstIndex(where: { $0.title == "Smith vs. Johnson" }) {
-            updated = updated.enumerated().filter { index, folder in
-                folder.title != "Smith vs. Johnson" || index == firstSmithIndex
-            }.map(\.element)
+        updated.removeAll { folder in
+            [
+                "Smith vs. Johnson",
+                "Marriage & Family",
+                "Credit"
+            ].contains(folder.title)
+        }
+
+        let defaults: [(String, CaseCategory)] = [
+            ("General Law Questions", .inProgress),
+            ("Jones vs. Smith (Example Case)", .inProgress),
+            ("Trust Law", .inProgress),
+            ("Civil Law", .inProgress),
+            ("Real Estate Law", .inProgress),
+            ("Family Trust Documents", .mockCases),
+            ("Dufff Vs. Banks", .mockCases)
+        ]
+
+        for (title, category) in defaults where !updated.contains(where: { $0.title == title }) {
+            updated.append(CaseFolder(title: title, category: category))
+        }
+
+        for index in updated.indices {
+            switch updated[index].title {
+            case "General Law Questions", "Jones vs. Smith (Example Case)", "Trust Law", "Civil Law", "Real Estate Law":
+                updated[index].category = .inProgress
+            case "Family Trust Documents", "Dufff Vs. Banks":
+                updated[index].category = .mockCases
+            default:
+                break
+            }
         }
 
         if updated.isEmpty {
-            return [CaseFolder(title: "Smith vs. Johnson", category: .inProgress)]
+            return defaults.map { CaseFolder(title: $0.0, category: $0.1) }
         }
 
         return updated

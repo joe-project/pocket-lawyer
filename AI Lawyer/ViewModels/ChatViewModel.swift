@@ -147,10 +147,20 @@ final class ChatViewModel: ObservableObject {
     @discardableResult
     func sendText(_ text: String, attachmentNames: [String] = [], attachmentContents: [String] = []) -> Bool {
 
-        guard let caseId = workspace?.selectedCaseId else {
+        guard let workspace else {
+            print("❌ Workspace unavailable")
+            errorMessage = "The workspace is not ready yet."
+            return false
+        }
+
+        guard let caseId = workspace.selectedCaseId else {
             print("❌ No case selected")
             errorMessage = "Select an active case before sending a message."
             return false
+        }
+
+        if handleFolderSuggestionReplyIfNeeded(text, currentCaseId: caseId, workspace: workspace) {
+            return true
         }
 
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -179,6 +189,45 @@ final class ChatViewModel: ObservableObject {
             }
         }
         return true
+    }
+
+    private func handleFolderSuggestionReplyIfNeeded(_ text: String, currentCaseId: UUID, workspace: WorkspaceManager) -> Bool {
+        guard conversationManager.pendingFolderSuggestionCaseId == currentCaseId else { return false }
+
+        let normalized = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        if ["yes", "y", "sure", "ok", "okay"].contains(normalized) {
+            let title = conversationManager.suggestedFolderTitle(for: currentCaseId)
+            let newCaseId = workspace.caseTreeViewModel.createNewCase(title: title, category: .mockCases)
+            if let newFolder = workspace.caseTreeViewModel.cases.first(where: { $0.id == newCaseId }) {
+                workspace.selectCase(byFolder: newFolder)
+                workspace.caseTreeViewModel.selectedWorkspaceSection = .chat
+                workspace.caseTreeViewModel.selectedSubfolder = .history
+                workspace.caseTreeViewModel.selectedFileId = nil
+                selectedCaseId = newCaseId
+                selectedSubfolder = .history
+                selectedFileId = nil
+                conversationManager.clearPendingFolderSuggestion()
+                conversationManager.addLocalAssistantMessage(
+                    "Started a new folder: \(newFolder.title). Continue the conversation here.",
+                    caseId: newCaseId
+                )
+                return true
+            }
+        }
+
+        if ["no", "n", "not now"].contains(normalized) {
+            conversationManager.clearPendingFolderSuggestion()
+            conversationManager.addLocalAssistantMessage(
+                "Okay, we’ll keep working in this folder.",
+                caseId: currentCaseId
+            )
+            return true
+        }
+
+        return false
     }
 
     /// Call when the user chooses to resume the intake interview (e.g. after tapping "Resume intake").

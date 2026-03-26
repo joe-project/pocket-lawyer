@@ -7,6 +7,7 @@ final class ConversationManager: ObservableObject {
     @Published var messages: [Message] = []
     /// True after answering a user question while intake was active; UI can show "Resume intake".
     @Published var offeringResumeIntake: Bool = false
+    @Published private(set) var pendingFolderSuggestionCaseId: UUID?
     /// Case ids currently being analyzed by background reasoning (and/or awaiting AI pipeline completion).
     @Published private(set) var analyzingCaseIds: Set<UUID> = []
 
@@ -18,6 +19,7 @@ final class ConversationManager: ObservableObject {
     private let contextCache = CaseContextCache()
     private let analysisResultCache = CaseAnalysisResultCache()
     private var isProcessingReasoning = false
+    private var lastFolderSuggestionUserCount: [UUID: Int] = [:]
 
     /// When set, case analysis is stored here and the dashboard can refresh from it.
     weak var caseManager: CaseManager?
@@ -92,6 +94,39 @@ final class ConversationManager: ObservableObject {
             }
             ensureReasoningProcessorRunning()
         }
+    }
+
+    func addLocalAssistantMessage(_ content: String, caseId: UUID?) {
+        let localMessage = Message(
+            id: UUID(),
+            caseId: caseId,
+            fileId: nil,
+            role: "assistant",
+            content: content,
+            timestamp: Date()
+        )
+        messages.append(localMessage)
+    }
+
+    func clearPendingFolderSuggestion() {
+        pendingFolderSuggestionCaseId = nil
+    }
+
+    func suggestedFolderTitle(for caseId: UUID) -> String {
+        let text = messagesForCase(caseId: caseId)
+            .filter { $0.role == "user" }
+            .suffix(3)
+            .map(\.content)
+            .joined(separator: " ")
+
+        let cleaned = text
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .prefix(4)
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return cleaned.isEmpty ? "New Case Folder" : cleaned.capitalized
     }
 
     // MARK: - Single pipeline: typed, voice, and intake answers
@@ -209,6 +244,7 @@ final class ConversationManager: ObservableObject {
             if intakePaused {
                 addResumeIntakeOfferMessage(caseId: caseId, fileId: assistantMessage.fileId)
             }
+            maybeOfferFolderSuggestion(caseId: caseId)
             return response
         case .failure(let error):
             print("getAIReply failed:", error)
@@ -238,6 +274,24 @@ final class ConversationManager: ObservableObject {
         case .evidence, .strategy, .note:
             return .note
         }
+    }
+
+    private func maybeOfferFolderSuggestion(caseId: UUID?) {
+        guard let caseId else { return }
+        guard pendingFolderSuggestionCaseId == nil else { return }
+        guard let folderTitle = caseTreeViewModel?.cases.first(where: { $0.id == caseId })?.title else { return }
+        guard folderTitle == "General Law Questions" else { return }
+
+        let userCount = messagesForCase(caseId: caseId).filter { $0.role == "user" }.count
+        guard userCount > 0, userCount.isMultiple(of: 4) else { return }
+        guard lastFolderSuggestionUserCount[caseId] != userCount else { return }
+
+        lastFolderSuggestionUserCount[caseId] = userCount
+        pendingFolderSuggestionCaseId = caseId
+        addLocalAssistantMessage(
+            "Would you like to start a new folder for this issue? Reply yes or no.",
+            caseId: caseId
+        )
     }
 
     /// Saves an AI reply into the active folder as a new versioned `CaseFile`.
