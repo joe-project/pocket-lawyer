@@ -22,6 +22,8 @@ struct RootContainerView: View {
     @State private var showFileImporter = false
 
     private let sidebarWidth: CGFloat = 300
+    private let sidebarHandleHitWidth: CGFloat = 28
+    private let sidebarHandleHitHeight: CGFloat = 120
 
     var body: some View {
         Group {
@@ -84,42 +86,18 @@ struct RootContainerView: View {
                             )
                             .allowsHitTesting(false)
                             .zIndex(10)
+
+                        Color.clear
+                            .frame(width: sidebarHandleHitWidth, height: sidebarHandleHitHeight)
+                            .contentShape(Rectangle())
+                            .position(
+                                x: max(16, min(sidebarWidth, sidebarOffset + sidebarWidth - 2)),
+                                y: UIScreen.main.bounds.height / 2
+                            )
+                            .gesture(sidebarHandleDragGesture)
+                            .zIndex(11)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 12)
-                            .onChanged { value in
-                                if sidebarDragStartOffset == nil {
-                                    sidebarDragStartOffset = sidebarOffset
-                                }
-                                let base = sidebarDragStartOffset!
-                                let proposed = base + value.translation.width
-                                sidebarOffset = min(0, max(-sidebarWidth, proposed))
-                                isSidebarOpen = sidebarOffset > -sidebarWidth / 2
-                            }
-                            .onEnded { value in
-                                sidebarDragStartOffset = nil
-                                let drag = value.translation.width
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
-                                    if drag > 80 {
-                                        isSidebarOpen = true
-                                        sidebarOffset = 0
-                                    } else if drag < -80 {
-                                        isSidebarOpen = false
-                                        sidebarOffset = -sidebarWidth
-                                    } else {
-                                        if sidebarOffset > -sidebarWidth / 2 {
-                                            isSidebarOpen = true
-                                            sidebarOffset = 0
-                                        } else {
-                                            isSidebarOpen = false
-                                            sidebarOffset = -sidebarWidth
-                                        }
-                                    }
-                                }
-                            }
-                    )
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
@@ -147,5 +125,37 @@ struct RootContainerView: View {
               url.pathComponents.count >= 2 else { return }
         let token = url.pathComponents[1]
         _ = workspace.applyInvitation(token: token)
+    }
+
+    private var sidebarHandleDragGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                if sidebarDragStartOffset == nil {
+                    sidebarDragStartOffset = sidebarOffset
+                }
+                let base = sidebarDragStartOffset!
+                let proposed = base + value.translation.width
+                sidebarOffset = min(0, max(-sidebarWidth, proposed))
+                isSidebarOpen = sidebarOffset > -sidebarWidth / 2
+            }
+            .onEnded { value in
+                sidebarDragStartOffset = nil
+                let drag = value.translation.width
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+                    if drag > 80 {
+                        isSidebarOpen = true
+                        sidebarOffset = 0
+                    } else if drag < -80 {
+                        isSidebarOpen = false
+                        sidebarOffset = -sidebarWidth
+                    } else if sidebarOffset > -sidebarWidth / 2 {
+                        isSidebarOpen = true
+                        sidebarOffset = 0
+                    } else {
+                        isSidebarOpen = false
+                        sidebarOffset = -sidebarWidth
+                    }
+                }
+            }
     }
 }
