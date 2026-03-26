@@ -268,15 +268,12 @@ struct MainContentView: View {
 
 enum SidebarWorkspaceItem: String {
     case activeCase1 = "Smith vs Jones"
-    case activeCase2 = "Brown vs State"
     case activeCase3 = "Davis vs Miller"
     case trustLaw = "Trust Law"
     case realEstate = "Real Estate"
     case credit = "Credit"
-    case civil = "Civil"
-    case criminal = "Criminal"
-    case traffic = "Traffic"
     case marriageFamily = "Marriage & Family"
+    case mockCases = "Mock Cases"
 }
 
 struct SidebarView: View {
@@ -306,7 +303,6 @@ struct SidebarView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     sidebarItem(SidebarWorkspaceItem.activeCase1)
-                    sidebarItem(SidebarWorkspaceItem.activeCase2)
                     sidebarItem(SidebarWorkspaceItem.activeCase3)
                 }
                 .padding(.horizontal, 12)
@@ -317,18 +313,41 @@ struct SidebarView: View {
                 Divider()
                     .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
 
-                Text("LAW")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(isDarkMode ? .gray : .secondary)
+                HStack(spacing: 10) {
+                    Text("LAW and Research")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(isDarkMode ? .gray : .secondary)
+
+                    Button {
+                        showAddEvidenceSheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(AppColors.primaryAccent)
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 VStack(alignment: .leading, spacing: 10) {
                     sidebarItem(.trustLaw)
                     sidebarItem(.realEstate)
                     sidebarItem(.credit)
-                    sidebarItem(.civil)
-                    sidebarItem(.criminal)
-                    sidebarItem(.traffic)
                     sidebarItem(.marriageFamily)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                .cornerRadius(12)
+
+                Divider()
+                    .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+
+                Text("Mock Cases")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(isDarkMode ? .gray : .secondary)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    sidebarItem(.mockCases)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
