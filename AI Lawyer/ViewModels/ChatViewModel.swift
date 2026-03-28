@@ -200,7 +200,7 @@ final class ChatViewModel: ObservableObject {
 
         if ["yes", "y", "sure", "ok", "okay"].contains(normalized) {
             let title = conversationManager.suggestedFolderTitle(for: currentCaseId)
-            let newCaseId = workspace.caseTreeViewModel.createNewCase(title: title, category: .mockCases)
+            let newCaseId = workspace.caseTreeViewModel.createNewCase(title: title, category: .inProgress)
             if let newFolder = workspace.caseTreeViewModel.cases.first(where: { $0.id == newCaseId }) {
                 workspace.selectCase(byFolder: newFolder)
                 workspace.caseTreeViewModel.selectedWorkspaceSection = .chat

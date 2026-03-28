@@ -48,11 +48,15 @@ Keep responses clear, structured, and actionable. Do not provide legal advice; r
 struct OpenAIService {
     /// Send chat to the Cloudflare Worker proxy with optional conversation context; returns (assistant text, whether response offers to generate a document, parsed timeline events).
     /// Uses workerBaseURL only; no API key is sent from the client.
-    func sendChat(messages: [ChatMessage], previousMessages: [Message]? = nil) async throws -> (String, Bool, [CaseTimelineEvent]) {
+    func sendChat(
+        messages: [ChatMessage],
+        previousMessages: [Message]? = nil,
+        systemPrompt: String = legalCaseIntakeSystemPrompt
+    ) async throws -> (String, Bool, [CaseTimelineEvent]) {
         if workerBaseURL.contains("YOUR_WORKER") {
             throw WorkerError.serverError(statusCode: 0, message: "Set your Cloudflare Worker URL in OpenAIService.swift (workerBaseURL).")
         }
-        let body = buildRequestBody(messages: messages, previousMessages: previousMessages ?? [])
+        let body = buildRequestBody(messages: messages, previousMessages: previousMessages ?? [], systemPrompt: systemPrompt)
         guard let url = URL(string: workerBaseURL) else {
             throw WorkerError.serverError(statusCode: 0, message: "Invalid Worker URL.")
         }
@@ -132,13 +136,13 @@ struct OpenAIService {
         return CaseAnalysisParser.parseTimelineLines(sectionText)
     }
 
-    private func buildRequestBody(messages: [ChatMessage], previousMessages: [Message]) -> WorkerRequest {
+    private func buildRequestBody(messages: [ChatMessage], previousMessages: [Message], systemPrompt: String) -> WorkerRequest {
         let context: [WorkerMessage] = previousMessages.map { WorkerMessage(role: $0.role, content: $0.content) }
         let newMessages: [WorkerMessage] = messages.map { msg in
             let role = msg.sender == .user ? "user" : "assistant"
             return WorkerMessage(role: role, content: msg.text)
         }
-        return WorkerRequest(systemPrompt: legalCaseIntakeSystemPrompt, context: context, messages: newMessages)
+        return WorkerRequest(systemPrompt: systemPrompt, context: context, messages: newMessages)
     }
 
     private func performRequest(_ request: URLRequest, label: String) async throws -> (Data, URLResponse) {

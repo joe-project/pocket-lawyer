@@ -4,11 +4,19 @@ struct HamburgerMenuView: View {
     @Binding var showLegalDisclaimer: Bool
     @Binding var showPrivacyPolicy: Bool
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("isDarkMode") private var isDarkMode = true
     @State private var showFeatureSuggestion = false
 
     var body: some View {
         NavigationView {
             List {
+                Toggle(isOn: $isDarkMode) {
+                    Label("Dark Mode", systemImage: "moon.fill")
+                        .font(LuxuryTheme.bodyFont(size: 16))
+                        .foregroundColor(AppColors.textPrimary)
+                }
+                .tint(AppColors.primaryAccent)
+                .listRowBackground(LuxuryTheme.surfaceCard)
                 Button {
                     showLegalDisclaimer = true
                     dismiss()

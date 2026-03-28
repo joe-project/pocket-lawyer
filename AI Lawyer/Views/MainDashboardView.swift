@@ -128,18 +128,6 @@ struct MainContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
                 .ignoresSafeArea(edges: .bottom)
-
-            VStack {
-                Spacer()
-
-                HStack {
-                    ThemeModeToggleButton()
-                        .padding(.leading, 20)
-                        .padding(.bottom, 105)
-
-                    Spacer()
-                }
-            }
         }
         .sheet(isPresented: $showAddEvidenceSheet) {
             AddEvidenceView()
@@ -288,6 +276,9 @@ struct SidebarView: View {
     @State private var isAddingSecondaryFolder = false
     @State private var renameCaseTarget: UUID?
     @State private var renameCaseName = ""
+    @State private var renameSubfolderTarget: (caseId: UUID, subfolder: CaseSubfolder)?
+    @State private var renameSubfolderName = ""
+    @State private var addingSubfolderTarget: UUID?
 
     private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
     private let primarySectionOrder = [
@@ -456,16 +447,33 @@ struct SidebarView: View {
                     renameCaseTarget = folder.id
                     renameCaseName = folder.title
                 }
+                Button("Delete", role: .destructive) {
+                    caseTreeViewModel.deleteCase(id: folder.id)
+                    expandedCaseIds.remove(folder.id)
+                }
             }
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 6) {
-                    caseSectionItem("Overview", section: .overview, caseFolder: folder)
-                    caseSectionItem("Timeline", section: .timeline, caseFolder: folder)
-                    caseSectionItem("Evidence", section: .evidence, caseFolder: folder)
-                    caseSectionItem("Documents", section: .documents, caseFolder: folder)
+                    caseSectionItem("Ask", section: .overview, caseFolder: folder)
+                    ForEach(caseTreeViewModel.visibleSubfolders(caseId: folder.id), id: \.self) { subfolder in
+                        caseSubfolderItem(subfolder, caseFolder: folder)
+                    }
                     caseSectionItem("Tasks", section: .tasks, caseFolder: folder)
                     caseSectionItem("Chat", section: .chat, caseFolder: folder)
+                    Menu {
+                        ForEach(caseTreeViewModel.availableHiddenSubfolders(caseId: folder.id), id: \.self) { subfolder in
+                            Button("Add \(caseTreeViewModel.folderDisplayName(caseId: folder.id, subfolder: subfolder))") {
+                                caseTreeViewModel.setSubfolderHidden(caseId: folder.id, subfolder: subfolder, hidden: false)
+                            }
+                        }
+                    } label: {
+                        Label("Add Subfolder", systemImage: "plus.circle")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(AppColors.primaryAccent)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
                     if renameCaseTarget == folder.id {
                         newCaseField(title: "Rename case", text: $renameCaseName) {
                             let trimmed = renameCaseName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -473,6 +481,15 @@ struct SidebarView: View {
                             caseTreeViewModel.renameCase(id: folder.id, to: trimmed)
                             renameCaseTarget = nil
                             renameCaseName = ""
+                        }
+                    }
+                    if let target = renameSubfolderTarget, target.caseId == folder.id {
+                        newCaseField(title: "Rename subfolder", text: $renameSubfolderName) {
+                            let trimmed = renameSubfolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { return }
+                            caseTreeViewModel.setFolderDisplayName(caseId: folder.id, subfolder: target.subfolder, name: trimmed)
+                            renameSubfolderTarget = nil
+                            renameSubfolderName = ""
                         }
                     }
                 }
@@ -509,6 +526,42 @@ struct SidebarView: View {
         .buttonStyle(.plain)
     }
 
+    private func caseSubfolderItem(_ subfolder: CaseSubfolder, caseFolder: CaseFolder) -> some View {
+        let title = caseTreeViewModel.folderDisplayName(caseId: caseFolder.id, subfolder: subfolder)
+        let isSelected = caseTreeViewModel.selectedCase?.id == caseFolder.id && caseTreeViewModel.selectedSubfolder == subfolder
+
+        return Button {
+            workspace.selectCase(byFolder: caseFolder)
+            syncSelection(for: subfolder, caseFolder: caseFolder)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(AppColors.textSecondary)
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(isDarkMode ? .white : .black)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isSelected ? (isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.06)) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button("Rename") {
+                renameSubfolderTarget = (caseFolder.id, subfolder)
+                renameSubfolderName = title
+            }
+            Button("Delete", role: .destructive) {
+                caseTreeViewModel.setSubfolderHidden(caseId: caseFolder.id, subfolder: subfolder, hidden: true)
+            }
+        }
+    }
+
     private func syncSelection(for section: CaseWorkspaceSection, caseFolder: CaseFolder) {
         switch section {
         case .timeline, .tasks, .deadlines:
@@ -525,6 +578,25 @@ struct SidebarView: View {
             caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .history).max(by: { $0.createdAt < $1.createdAt })?.id
         case .chat, .overview, .recordings, .emails:
             caseTreeViewModel.selectedFileId = nil
+        }
+    }
+
+    private func syncSelection(for subfolder: CaseSubfolder, caseFolder: CaseFolder) {
+        workspace.selectCase(byFolder: caseFolder)
+        caseTreeViewModel.selectedSubfolder = subfolder
+        caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: subfolder).max(by: { $0.createdAt < $1.createdAt })?.id
+
+        switch subfolder {
+        case .timeline:
+            caseTreeViewModel.selectedWorkspaceSection = .timeline
+        case .evidence:
+            caseTreeViewModel.selectedWorkspaceSection = .evidence
+        case .documents, .filedDocuments, .response:
+            caseTreeViewModel.selectedWorkspaceSection = .documents
+        case .history:
+            caseTreeViewModel.selectedWorkspaceSection = .history
+        case .recordings:
+            caseTreeViewModel.selectedWorkspaceSection = .recordings
         }
     }
 

@@ -15,9 +15,17 @@ final class AIEngine: @unchecked Sendable {
 
     func chat(
         messages: [ChatMessage],
-        previousMessages: [Message]? = nil
+        previousMessages: [Message]? = nil,
+        systemPrompt: String? = nil
     ) async throws -> (String, Bool, [CaseTimelineEvent]) {
-        try await openAIService.sendChat(messages: messages, previousMessages: previousMessages)
+        if let systemPrompt {
+            return try await openAIService.sendChat(
+                messages: messages,
+                previousMessages: previousMessages,
+                systemPrompt: systemPrompt
+            )
+        }
+        return try await openAIService.sendChat(messages: messages, previousMessages: previousMessages)
     }
 
     // MARK: - Case analysis (full case file → structured CaseAnalysis)
@@ -201,6 +209,21 @@ final class AIEngine: @unchecked Sendable {
     }
 
     // MARK: - Prompts
+
+    static let guidedCaseChatSystemPrompt = """
+    You are Pocket Lawyer's guided legal case-building assistant.
+
+    Your role is to build the case with the user step by step.
+
+    Rules:
+    - Keep replies concise and conversational.
+    - Do not dump a full legal analysis unless explicitly asked.
+    - Ask short clarifying questions when needed.
+    - Mention compensation only as a possibility, never a guarantee.
+    - Keep strategy practical and brief.
+    - When listing documents, use clean bullet points.
+    - Do not provide formal legal advice.
+    """
 
     private static let fullCaseAnalysisSystemPrompt = """
     You are a legal case intake and analysis assistant. The user will provide a COMPLETE case file that may include:

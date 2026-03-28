@@ -125,6 +125,20 @@ final class CaseTreeViewModel: ObservableObject {
         save()
     }
 
+    func deleteCase(id: UUID) {
+        guard let idx = cases.firstIndex(where: { $0.id == id }) else { return }
+        cases.remove(at: idx)
+        timelineEvents.removeValue(forKey: id)
+
+        if selectedCase?.id == id {
+            selectedCase = cases.first(where: { $0.title == "General Law Questions" }) ?? cases.first
+            selectedFileId = nil
+            selectedSubfolder = .evidence
+            selectedWorkspaceSection = .overview
+        }
+        save()
+    }
+
     /// Creates a brand new case folder and selects it in the UI.
     @discardableResult
     func createNewCase(title: String, category: CaseCategory = .inProgress) -> UUID {
@@ -193,6 +207,35 @@ final class CaseTreeViewModel: ObservableObject {
             cases[idx].customFolderNames.removeValue(forKey: subfolder)
         } else {
             cases[idx].customFolderNames[subfolder] = trimmed
+        }
+        save()
+    }
+
+    func visibleSubfolders(caseId: UUID) -> [CaseSubfolder] {
+        guard let folder = cases.first(where: { $0.id == caseId }) else {
+            return [.timeline, .evidence, .documents]
+        }
+        return CaseSubfolder.allCases.filter { !folder.hiddenSubfolders.contains($0) }
+    }
+
+    func availableHiddenSubfolders(caseId: UUID) -> [CaseSubfolder] {
+        guard let folder = cases.first(where: { $0.id == caseId }) else { return [] }
+        return CaseSubfolder.allCases.filter { folder.hiddenSubfolders.contains($0) }
+    }
+
+    func setSubfolderHidden(caseId: UUID, subfolder: CaseSubfolder, hidden: Bool) {
+        guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        if hidden {
+            if !cases[idx].hiddenSubfolders.contains(subfolder) {
+                cases[idx].hiddenSubfolders.append(subfolder)
+            }
+            if selectedCase?.id == caseId, selectedSubfolder == subfolder {
+                selectedFileId = nil
+                selectedSubfolder = .evidence
+                selectedWorkspaceSection = .overview
+            }
+        } else {
+            cases[idx].hiddenSubfolders.removeAll { $0 == subfolder }
         }
         save()
     }

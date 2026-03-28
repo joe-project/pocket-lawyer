@@ -3,6 +3,16 @@ import Combine
 
 @MainActor
 final class ConversationManager: ObservableObject {
+    private enum GuidedCaseStage: String {
+        case initialSummary
+        case awaitingClarificationAnswers
+        case awaitingStrategyConsent
+        case awaitingProceedConsent
+        case awaitingQuestionDecision
+        case awaitingDocumentConsent
+        case openQuestionAnswer
+        case completed
+    }
 
     @Published var messages: [Message] = []
     /// True after answering a user question while intake was active; UI can show "Resume intake".
@@ -20,6 +30,7 @@ final class ConversationManager: ObservableObject {
     private let analysisResultCache = CaseAnalysisResultCache()
     private var isProcessingReasoning = false
     private var lastFolderSuggestionUserCount: [UUID: Int] = [:]
+    private var guidedStages: [UUID: GuidedCaseStage] = [:]
 
     /// When set, case analysis is stored here and the dashboard can refresh from it.
     weak var caseManager: CaseManager?
@@ -129,6 +140,16 @@ final class ConversationManager: ObservableObject {
         return cleaned.isEmpty ? "New Case Folder" : cleaned.capitalized
     }
 
+    private func stage(for caseId: UUID?) -> GuidedCaseStage {
+        guard let caseId else { return .initialSummary }
+        return guidedStages[caseId] ?? .initialSummary
+    }
+
+    private func setStage(_ stage: GuidedCaseStage, for caseId: UUID?) {
+        guard let caseId else { return }
+        guidedStages[caseId] = stage
+    }
+
     // MARK: - Single pipeline: typed, voice, and intake answers
 
     /// Single entry point for all user content (typed text, voice transcript, file message, or intake answer). Creates a user Message with optional attachments, stores it via addMessage (triggering CaseReasoningEngine and CaseAnalysis update), gets an AI reply and stores it, then optionally offers to resume intake. Use this for every user submission so all inputs flow through the same pipeline.
@@ -188,49 +209,52 @@ final class ConversationManager: ObservableObject {
         let caseMessages = messagesForCase(caseId: caseId)
         guard let last = caseMessages.last, last.role == "user" else { return nil }
         let previous = Array(caseMessages.dropLast())
-        let effectiveContent = effectiveUserContent(for: last)
-        let chatMessage = ChatMessage(sender: .user, text: effectiveContent)
-        let messagesSnapshot = previous.isEmpty ? nil : previous
-        let engineForNetwork = aiEngine
-        typealias ReplyResult = Result<(String, Bool, [CaseTimelineEvent]), Error>
-        let result: ReplyResult = await Task.detached {
-            do {
-                let response = try await engineForNetwork.chat(messages: [chatMessage], previousMessages: messagesSnapshot)
-                return ReplyResult.success(response)
-            } catch {
-                return ReplyResult.failure(error)
+        if let caseId {
+            switch stage(for: caseId) {
+            case .awaitingStrategyConsent:
+                if let response = await handleStrategyConsentReply(last.content, caseId: caseId) {
+                    return response
+                }
+            case .awaitingProceedConsent:
+                if let response = await handleProceedConsentReply(last.content, caseId: caseId) {
+                    return response
+                }
+            case .awaitingQuestionDecision:
+                if let response = await handleQuestionDecisionReply(last.content, caseId: caseId) {
+                    return response
+                }
+            case .awaitingDocumentConsent:
+                if let response = await handleDocumentConsentReply(last.content, caseId: caseId) {
+                    return response
+                }
+            case .openQuestionAnswer:
+                if let response = await answerFollowUpQuestion(last.content, caseId: caseId) {
+                    return response
+                }
+            case .initialSummary, .awaitingClarificationAnswers, .completed:
+                break
             }
-        }.value
+        }
+
+        let request = requestForStage(
+            stage(for: caseId),
+            latestUserMessage: effectiveUserContent(for: last)
+        )
+        let result = await runGuidedChatRequest(
+            prompt: request.prompt,
+            latestUserText: request.userText,
+            previousMessages: previous
+        )
         switch result {
-        case .success(let (response, _, _)):
+        case .success(let response):
             print("🔥 AI RESPONSE RECEIVED:", response)
-            // Persist the AI response into the selected folder as a new version.
-            let saved: (id: UUID, tag: ResponseTag)? = saveAssistantResponseIntoActiveFolder(
+            let assistantMessage = appendAssistantResponse(
+                response,
                 caseId: caseId,
                 baseFileId: fileId,
-                targetSubfolder: targetSubfolder,
-                responseText: response
+                targetSubfolder: request.targetSubfolder
             )
-
-            // Keep chat continuity: tie the triggering user message to the new saved version file
-            // so the file-bound transcript shows the full exchange.
-            if let newId = saved?.id {
-                if let idx = messages.firstIndex(where: { $0.id == last.id }) {
-                    messages[idx].fileId = newId
-                }
-            }
-
-            let assistantMessage = Message(
-                id: UUID(),
-                caseId: caseId,
-                fileId: saved?.id ?? fileId,
-                role: "assistant",
-                content: response,
-                timestamp: Date(),
-                responseTag: saved?.tag
-            )
-            addMessage(assistantMessage)
-            print("🔥 getAIReply messages count after assistant append:", messages.count)
+            setStage(request.nextStage, for: caseId)
 
             NotificationCenter.default.post(
                 name: .contextualMonetizationAIInteraction,
@@ -274,6 +298,247 @@ final class ConversationManager: ObservableObject {
         case .evidence, .strategy, .note:
             return .note
         }
+    }
+
+    private func appendAssistantResponse(
+        _ response: String,
+        caseId: UUID?,
+        baseFileId: UUID?,
+        targetSubfolder: CaseSubfolder
+    ) -> Message {
+        let saved = saveAssistantResponseIntoActiveFolder(
+            caseId: caseId,
+            baseFileId: baseFileId,
+            targetSubfolder: targetSubfolder,
+            responseText: response
+        )
+
+        if let caseId, let newId = saved?.id, let idx = messages.lastIndex(where: { $0.caseId == caseId && $0.role == "user" }) {
+            messages[idx].fileId = newId
+        }
+
+        let assistantMessage = Message(
+            id: UUID(),
+            caseId: caseId,
+            fileId: saved?.id ?? baseFileId,
+            role: "assistant",
+            content: response,
+            timestamp: Date(),
+            responseTag: saved?.tag
+        )
+        addMessage(assistantMessage)
+        print("🔥 getAIReply messages count after assistant append:", messages.count)
+        return assistantMessage
+    }
+
+    private typealias GuidedReplyResult = Result<String, Error>
+
+    private func runGuidedChatRequest(
+        prompt: String,
+        latestUserText: String,
+        previousMessages: [Message]
+    ) async -> GuidedReplyResult {
+        let chatMessage = ChatMessage(sender: .user, text: latestUserText)
+        let messagesSnapshot = previousMessages.isEmpty ? nil : previousMessages
+        let engineForNetwork = aiEngine
+        return await Task.detached {
+            do {
+                let (response, _, _) = try await engineForNetwork.chat(
+                    messages: [chatMessage],
+                    previousMessages: messagesSnapshot,
+                    systemPrompt: prompt
+                )
+                return GuidedReplyResult.success(response)
+            } catch {
+                return GuidedReplyResult.failure(error)
+            }
+        }.value
+    }
+
+    private func requestForStage(
+        _ stage: GuidedCaseStage,
+        latestUserMessage: String
+    ) -> (prompt: String, userText: String, targetSubfolder: CaseSubfolder, nextStage: GuidedCaseStage) {
+        switch stage {
+        case .initialSummary:
+            return (
+                prompt: """
+                \(AIEngine.guidedCaseChatSystemPrompt)
+
+                Stage: initial case intake.
+                Respond with:
+                - a very short summary of what the user said
+                - one sentence saying they may be entitled to compensation if the facts support it
+                - exactly 3 clarifying questions
+                Keep it concise. No large headers.
+                """,
+                userText: latestUserMessage,
+                targetSubfolder: .history,
+                nextStage: .awaitingClarificationAnswers
+            )
+        case .awaitingClarificationAnswers:
+            return (
+                prompt: """
+                \(AIEngine.guidedCaseChatSystemPrompt)
+
+                Stage: clarification complete.
+                Briefly acknowledge the user's answers in 1 sentence.
+                Then ask: "Would you like me to give you a primary and secondary strategy?"
+                Keep it under 3 short sentences.
+                """,
+                userText: latestUserMessage,
+                targetSubfolder: .history,
+                nextStage: .awaitingStrategyConsent
+            )
+        case .completed:
+            return (
+                prompt: """
+                \(AIEngine.guidedCaseChatSystemPrompt)
+
+                The user is in ongoing case Q&A.
+                Answer the user's question briefly and practically.
+                End with: "Do you have any other questions?"
+                """,
+                userText: latestUserMessage,
+                targetSubfolder: .history,
+                nextStage: .awaitingQuestionDecision
+            )
+        case .awaitingStrategyConsent, .awaitingProceedConsent, .awaitingQuestionDecision, .awaitingDocumentConsent, .openQuestionAnswer:
+            return (
+                prompt: AIEngine.guidedCaseChatSystemPrompt,
+                userText: latestUserMessage,
+                targetSubfolder: .history,
+                nextStage: stage
+            )
+        }
+    }
+
+    private func normalizedDecision(_ text: String) -> Bool? {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if ["yes", "y", "yeah", "sure", "ok", "okay", "please", "proceed"].contains(normalized) {
+            return true
+        }
+        if ["no", "n", "not now", "nope"].contains(normalized) {
+            return false
+        }
+        return nil
+    }
+
+    private func handleStrategyConsentReply(_ text: String, caseId: UUID) async -> String? {
+        guard let decision = normalizedDecision(text) else { return nil }
+        if decision == false {
+            let content = "Okay. Keep sharing details or ask a question when you're ready."
+            _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
+            setStage(.awaitingClarificationAnswers, for: caseId)
+            return content
+        }
+
+        let result = await runGuidedChatRequest(
+            prompt: """
+            \(AIEngine.guidedCaseChatSystemPrompt)
+
+            Stage: strategy offer accepted.
+            Give a concise primary strategy and a concise secondary strategy.
+            Then ask if the user wants to proceed with the primary strategy.
+            Keep it short.
+            """,
+            latestUserText: text,
+            previousMessages: messagesForCase(caseId: caseId)
+        )
+        guard case .success(let response) = result else { return nil }
+        _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .response)
+        setStage(.awaitingProceedConsent, for: caseId)
+        return response
+    }
+
+    private func handleProceedConsentReply(_ text: String, caseId: UUID) async -> String? {
+        guard let decision = normalizedDecision(text) else { return nil }
+        if decision == false {
+            let content = "Okay. We can stay with strategy for now. Do you have any questions?"
+            _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
+            setStage(.awaitingQuestionDecision, for: caseId)
+            return content
+        }
+
+        let result = await runGuidedChatRequest(
+            prompt: """
+            \(AIEngine.guidedCaseChatSystemPrompt)
+
+            Stage: proceed with the strategy.
+            Give a short proceed plan with immediate next steps.
+            Then ask exactly: "Do you have any questions?"
+            Keep it concise.
+            """,
+            latestUserText: text,
+            previousMessages: messagesForCase(caseId: caseId)
+        )
+        guard case .success(let response) = result else { return nil }
+        _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .response)
+        setStage(.awaitingQuestionDecision, for: caseId)
+        return response
+    }
+
+    private func handleQuestionDecisionReply(_ text: String, caseId: UUID) async -> String? {
+        if let decision = normalizedDecision(text) {
+            if decision {
+                let content = "Ask your question and I'll answer it."
+                _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
+                setStage(.openQuestionAnswer, for: caseId)
+                return content
+            } else {
+                let content = "Would you like me to list the documents needed and add them to your folder?"
+                _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .documents)
+                setStage(.awaitingDocumentConsent, for: caseId)
+                return content
+            }
+        }
+
+        return await answerFollowUpQuestion(text, caseId: caseId)
+    }
+
+    private func answerFollowUpQuestion(_ text: String, caseId: UUID) async -> String? {
+        let result = await runGuidedChatRequest(
+            prompt: """
+            \(AIEngine.guidedCaseChatSystemPrompt)
+
+            Stage: answer a follow-up question.
+            Answer the user's question briefly and clearly based on the conversation so far.
+            End with either "Do you have any other questions?" or "If not, I can list the documents needed."
+            """,
+            latestUserText: text,
+            previousMessages: messagesForCase(caseId: caseId)
+        )
+        guard case .success(let response) = result else { return nil }
+        _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
+        setStage(.awaitingQuestionDecision, for: caseId)
+        return response
+    }
+
+    private func handleDocumentConsentReply(_ text: String, caseId: UUID) async -> String? {
+        guard let decision = normalizedDecision(text) else { return nil }
+        if decision == false {
+            let content = "Okay. Ask any questions when you're ready."
+            _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
+            setStage(.completed, for: caseId)
+            return content
+        }
+
+        let result = await runGuidedChatRequest(
+            prompt: """
+            \(AIEngine.guidedCaseChatSystemPrompt)
+
+            Stage: documents needed.
+            List the documents or records the user should gather next.
+            Use short bullet points only.
+            Keep it practical and concise.
+            """,
+            latestUserText: text,
+            previousMessages: messagesForCase(caseId: caseId)
+        )
+        guard case .success(let response) = result else { return nil }
+        _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .documents)
+        setStage(.completed, for: caseId)
+        return response
     }
 
     private func maybeOfferFolderSuggestion(caseId: UUID?) {

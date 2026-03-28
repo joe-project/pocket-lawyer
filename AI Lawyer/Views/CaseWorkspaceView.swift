@@ -517,9 +517,16 @@ struct CaseWorkspaceView: View {
         return VStack(alignment: .leading, spacing: 16) {
             WorkspaceCardHeader(icon: "💬", title: "Chat")
             if messages.isEmpty {
-                Text("No messages yet. Use the input bar below to describe your case or ask questions.")
-                    .font(LuxuryTheme.bodyFont(size: 15))
-                    .foregroundColor(AppColors.textPrimary)
+                HStack(alignment: .top) {
+                    Spacer(minLength: 40)
+                    chatBubble(
+                        ChatMessage(
+                            sender: .ai,
+                            text: "Ask a legal question, start generating a document, or start a case."
+                        ),
+                        isUser: false
+                    )
+                }
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(messages.suffix(20)) { message in

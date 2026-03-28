@@ -173,6 +173,8 @@ struct CaseFolder: Identifiable, Codable {
     var subfolders: [CaseSubfolder: [CaseFile]]
     /// Custom display names for folders; default is CaseSubfolder.rawValue.
     var customFolderNames: [CaseSubfolder: String]
+    /// Hidden built-in subfolders. Hiding preserves files and linkage, but removes the node from the sidebar tree.
+    var hiddenSubfolders: [CaseSubfolder]
     /// Email drafts generated for this case (stored locally; never sent automatically).
     var emailDrafts: [EmailDraft]
     /// Deadlines identified from evidence or case (e.g. response due, filing deadline).
@@ -183,6 +185,7 @@ struct CaseFolder: Identifiable, Codable {
          category: CaseCategory,
          subfolders: [CaseSubfolder: [CaseFile]] = [:],
          customFolderNames: [CaseSubfolder: String] = [:],
+         hiddenSubfolders: [CaseSubfolder] = [.response, .recordings, .history, .filedDocuments],
          emailDrafts: [EmailDraft] = [],
          deadlines: [LegalDeadline] = []) {
         self.id = id
@@ -195,12 +198,13 @@ struct CaseFolder: Identifiable, Codable {
         }
         self.subfolders = initial
         self.customFolderNames = customFolderNames
+        self.hiddenSubfolders = hiddenSubfolders
         self.emailDrafts = emailDrafts
         self.deadlines = deadlines
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, category, subfolders, customFolderNames, emailDrafts, deadlines
+        case id, title, category, subfolders, customFolderNames, hiddenSubfolders, emailDrafts, deadlines
     }
 
     init(from decoder: Decoder) throws {
@@ -210,6 +214,7 @@ struct CaseFolder: Identifiable, Codable {
         category = try c.decode(CaseCategory.self, forKey: .category)
         subfolders = try c.decode([CaseSubfolder: [CaseFile]].self, forKey: .subfolders)
         customFolderNames = try c.decode([CaseSubfolder: String].self, forKey: .customFolderNames)
+        hiddenSubfolders = try c.decodeIfPresent([CaseSubfolder].self, forKey: .hiddenSubfolders) ?? [.response, .recordings, .history, .filedDocuments]
         emailDrafts = try c.decodeIfPresent([EmailDraft].self, forKey: .emailDrafts) ?? []
         deadlines = try c.decodeIfPresent([LegalDeadline].self, forKey: .deadlines) ?? []
     }
@@ -221,6 +226,7 @@ struct CaseFolder: Identifiable, Codable {
         try c.encode(category, forKey: .category)
         try c.encode(subfolders, forKey: .subfolders)
         try c.encode(customFolderNames, forKey: .customFolderNames)
+        try c.encode(hiddenSubfolders, forKey: .hiddenSubfolders)
         try c.encode(emailDrafts, forKey: .emailDrafts)
         try c.encode(deadlines, forKey: .deadlines)
     }
