@@ -151,6 +151,85 @@ final class ConversationManager: ObservableObject {
         guidedStages[caseId] = stage
     }
 
+    private func localGuidedReply(for stage: GuidedCaseStage, caseId: UUID, latestUserMessage: String) -> (content: String, targetSubfolder: CaseSubfolder, nextStage: GuidedCaseStage)? {
+        let combinedUserText = messagesForCase(caseId: caseId)
+            .filter { $0.role == "user" }
+            .map(\.content)
+            .joined(separator: " ")
+            .lowercased()
+
+        let housingKeywords = ["landlord", "rent", "lease", "apartment", "toilet", "bathroom", "repair", "plumbing", "tenant", "eviction"]
+        let isHousingIssue = housingKeywords.contains { combinedUserText.contains($0) || latestUserMessage.lowercased().contains($0) }
+
+        switch stage {
+        case .initialSummary:
+            if isHousingIssue {
+                return (
+                    """
+                    That sounds frustrating, and you may have a basis to seek compensation depending on the facts.
+
+                    A few quick questions so I can understand it better:
+                    • How long has the toilet been unusable?
+                    • Have you told the landlord in writing, and do you have texts or emails?
+                    • What city and state is the rental in?
+                    • Are you on a lease, and how much rent do you pay?
+                    """,
+                    .history,
+                    .awaitingClarificationAnswers
+                )
+            }
+
+            return (
+                """
+                I’m sorry you’re dealing with that, and you may have a basis for compensation depending on the facts.
+
+                A few quick questions so I can understand it better:
+                • When did this start?
+                • Who was involved?
+                • Do you have any messages, photos, or documents?
+                • What outcome are you hoping for?
+                """,
+                .history,
+                .awaitingClarificationAnswers
+            )
+
+        case .awaitingClarificationAnswers:
+            if isHousingIssue {
+                return (
+                    """
+                    Thanks, that helps. A few more details will help me tighten this up:
+                    • Is there another working bathroom in the home?
+                    • Has this caused hotel costs, health issues, or other out-of-pocket losses?
+                    • Did the landlord give any response or repair date?
+                    """,
+                    .history,
+                    .awaitingMoreClarificationAnswers
+                )
+            }
+
+            return (
+                """
+                Thanks, that helps. A few more details will help me narrow this down:
+                • Has this caused you any money loss, missed work, or other harm?
+                • Have you reported it to anyone or gotten a response back?
+                • Is there a deadline, hearing, notice, or document tied to this?
+                """,
+                .history,
+                .awaitingMoreClarificationAnswers
+            )
+
+        case .awaitingMoreClarificationAnswers:
+            return (
+                "Thanks, that gives me a clearer picture. Would you like me to put together a short strategy for you?",
+                .history,
+                .awaitingStrategyConsent
+            )
+
+        case .awaitingStrategyConsent, .awaitingProceedConsent, .awaitingQuestionDecision, .awaitingDocumentConsent, .openQuestionAnswer, .completed:
+            return nil
+        }
+    }
+
     // MARK: - Single pipeline: typed, voice, and intake answers
 
     /// Single entry point for all user content (typed text, voice transcript, file message, or intake answer). Creates a user Message with optional attachments, stores it via addMessage (triggering CaseReasoningEngine and CaseAnalysis update), gets an AI reply and stores it, then optionally offers to resume intake. Use this for every user submission so all inputs flow through the same pipeline.
@@ -211,6 +290,26 @@ final class ConversationManager: ObservableObject {
         guard let last = caseMessages.last, last.role == "user" else { return nil }
         let previous = Array(caseMessages.dropLast())
         if let caseId {
+            if let local = localGuidedReply(for: stage(for: caseId), caseId: caseId, latestUserMessage: last.content) {
+                let assistantMessage = appendAssistantResponse(
+                    local.content,
+                    caseId: caseId,
+                    baseFileId: fileId,
+                    targetSubfolder: local.targetSubfolder
+                )
+                setStage(local.nextStage, for: caseId)
+
+                NotificationCenter.default.post(
+                    name: .contextualMonetizationAIInteraction,
+                    object: nil,
+                    userInfo: [
+                        "caseId": caseId.uuidString,
+                        "fileId": assistantMessage.fileId?.uuidString ?? ""
+                    ]
+                )
+                return local.content
+            }
+
             switch stage(for: caseId) {
             case .awaitingStrategyConsent:
                 if let response = await handleStrategyConsentReply(last.content, caseId: caseId) {

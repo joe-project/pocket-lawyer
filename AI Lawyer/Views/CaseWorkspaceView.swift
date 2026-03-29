@@ -28,9 +28,6 @@ struct CaseWorkspaceView: View {
         Group {
             if let state = workspace.currentCaseState {
                 VStack(spacing: 0) {
-                    if state.analysis != nil {
-                        caseCommandBar(onNextAction: fetchNextAction)
-                    }
                     if isAnalyzing(caseId: state.caseId) {
                         analyzingBanner
                     }
@@ -212,7 +209,8 @@ struct CaseWorkspaceView: View {
     }
 
     private func isAnalyzing(caseId: UUID) -> Bool {
-        chatViewModel.isSending || conversationManager.analyzingCaseIds.contains(caseId)
+        guard selectedSection != .chat else { return false }
+        return chatViewModel.isSending || conversationManager.analyzingCaseIds.contains(caseId)
     }
 
     private var analyzingBanner: some View {
@@ -519,8 +517,7 @@ struct CaseWorkspaceView: View {
                 date: msg.timestamp
             )
         }
-        return VStack(alignment: .leading, spacing: 16) {
-            WorkspaceCardHeader(icon: "💬", title: "Chat")
+        let content = VStack(alignment: .leading, spacing: 16) {
             if messages.isEmpty {
                 HStack(alignment: .top) {
                     Spacer(minLength: 40)
@@ -557,9 +554,18 @@ struct CaseWorkspaceView: View {
                 .buttonStyle(AppButtonStyle())
             }
         }
-        .padding(LuxuryTheme.workspaceCardPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .luxuryCard()
+
+        return Group {
+            if selectedSection == .chat {
+                content
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                content
+                    .padding(LuxuryTheme.workspaceCardPadding)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .luxuryCard()
+            }
+        }
         .onAppear {
             persistSectionNotesIfNeeded()
         }
