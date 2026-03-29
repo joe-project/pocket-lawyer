@@ -6,7 +6,7 @@ final class CaseTreeViewModel: ObservableObject {
     @Published var cases: [CaseFolder] = []
     @Published var selectedCase: CaseFolder?
     /// Workspace tab (Overview, Timeline, Chat, etc.). Replaces folder grouping.
-    @Published var selectedWorkspaceSection: CaseWorkspaceSection = .overview
+    @Published var selectedWorkspaceSection: CaseWorkspaceSection = .chat
     /// Kept for DocumentListView; set in sync when selecting Evidence/Documents/History.
     @Published var selectedSubfolder: CaseSubfolder = .evidence
     /// Active file selected from the sidebar file tree (used for preview).
@@ -134,7 +134,7 @@ final class CaseTreeViewModel: ObservableObject {
             selectedCase = cases.first(where: { $0.title == "General Law Questions" }) ?? cases.first
             selectedFileId = nil
             selectedSubfolder = .evidence
-            selectedWorkspaceSection = .overview
+            selectedWorkspaceSection = .chat
         }
         save()
     }
@@ -150,7 +150,7 @@ final class CaseTreeViewModel: ObservableObject {
         selectedCase = folder
         selectedSubfolder = .evidence
         selectedFileId = nil
-        selectedWorkspaceSection = .overview
+        selectedWorkspaceSection = .chat
         save()
         return id
     }
@@ -232,7 +232,7 @@ final class CaseTreeViewModel: ObservableObject {
             if selectedCase?.id == caseId, selectedSubfolder == subfolder {
                 selectedFileId = nil
                 selectedSubfolder = .evidence
-                selectedWorkspaceSection = .overview
+                selectedWorkspaceSection = .chat
             }
         } else {
             cases[idx].hiddenSubfolders.removeAll { $0 == subfolder }

@@ -6,6 +6,7 @@ final class ConversationManager: ObservableObject {
     private enum GuidedCaseStage: String {
         case initialSummary
         case awaitingClarificationAnswers
+        case awaitingMoreClarificationAnswers
         case awaitingStrategyConsent
         case awaitingProceedConsent
         case awaitingQuestionDecision
@@ -231,7 +232,7 @@ final class ConversationManager: ObservableObject {
                 if let response = await answerFollowUpQuestion(last.content, caseId: caseId) {
                     return response
                 }
-            case .initialSummary, .awaitingClarificationAnswers, .completed:
+            case .initialSummary, .awaitingClarificationAnswers, .awaitingMoreClarificationAnswers, .completed:
                 break
             }
         }
@@ -369,9 +370,9 @@ final class ConversationManager: ObservableObject {
                 Respond with:
                 - one very short sentence summarizing what the user said
                 - one short sentence saying they may be entitled to compensation if the facts support it
-                - one short sentence asking if they would like to hear a short strategy
-                - exactly 2 short clarifying questions
-                Keep it under 5 short lines total.
+                - exactly 4 short clarifying questions about the facts
+                Ask about practical details like time, rent, lease, address, notice, conditions, or communications when relevant.
+                Keep it under 6 short lines total.
                 No headers. No long explanation. Sound calm and conversational.
                 """,
                 userText: latestUserMessage,
@@ -383,9 +384,24 @@ final class ConversationManager: ObservableObject {
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
-                Stage: clarification complete.
+                Stage: continue fact gathering.
                 Briefly acknowledge the user's answers in 1 short sentence.
-                Then ask exactly: "Would you like to hear a short strategy?"
+                Then ask exactly 3 more short clarifying questions that help build the case record.
+                Be curious, practical, and compassionate.
+                Keep it under 4 short lines total.
+                """,
+                userText: latestUserMessage,
+                targetSubfolder: .history,
+                nextStage: .awaitingMoreClarificationAnswers
+            )
+        case .awaitingMoreClarificationAnswers:
+            return (
+                prompt: """
+                \(AIEngine.guidedCaseChatSystemPrompt)
+
+                Stage: enough facts gathered for a first strategy.
+                Briefly acknowledge the user in 1 short sentence.
+                Then ask exactly: "Would you like me to put together a short strategy for you?"
                 Keep it under 2 short sentences.
                 """,
                 userText: latestUserMessage,
@@ -430,9 +446,9 @@ final class ConversationManager: ObservableObject {
     private func handleStrategyConsentReply(_ text: String, caseId: UUID) async -> String? {
         guard let decision = normalizedDecision(text) else { return nil }
         if decision == false {
-            let content = "Okay. Tell me a little more about what happened, or ask me a question."
+            let content = "Okay. Tell me a little more about what happened, and I’ll keep building the case with you."
             _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
-            setStage(.awaitingClarificationAnswers, for: caseId)
+            setStage(.awaitingMoreClarificationAnswers, for: caseId)
             return content
         }
 

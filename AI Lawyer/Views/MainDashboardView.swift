@@ -399,6 +399,7 @@ struct SidebarView: View {
             }
             if let generalFolder = caseTreeViewModel.cases.first(where: { $0.title == SidebarWorkspaceItem.generalLawQuestions.rawValue }) {
                 workspace.selectCase(byFolder: generalFolder)
+                caseTreeViewModel.selectedWorkspaceSection = .chat
                 expandedCaseIds.insert(generalFolder.id)
             }
         }
@@ -431,7 +432,7 @@ struct SidebarView: View {
                         expandedCaseIds.insert(folder.id)
                     }
                     workspace.selectCase(byFolder: folder)
-                    caseTreeViewModel.selectedWorkspaceSection = .overview
+                    caseTreeViewModel.selectedWorkspaceSection = .chat
                 }
             } label: {
                 SidebarCaseRow(
@@ -455,12 +456,11 @@ struct SidebarView: View {
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 6) {
-                    caseSectionItem("Ask", section: .overview, caseFolder: folder)
+                    caseSectionItem("Ask", section: .chat, caseFolder: folder)
                     ForEach(caseTreeViewModel.visibleSubfolders(caseId: folder.id), id: \.self) { subfolder in
                         caseSubfolderItem(subfolder, caseFolder: folder)
                     }
                     caseSectionItem("Tasks", section: .tasks, caseFolder: folder)
-                    caseSectionItem("Chat", section: .chat, caseFolder: folder)
                     Menu {
                         ForEach(caseTreeViewModel.availableHiddenSubfolders(caseId: folder.id), id: \.self) { subfolder in
                             Button("Add \(caseTreeViewModel.folderDisplayName(caseId: folder.id, subfolder: subfolder))") {

@@ -217,8 +217,10 @@ final class AIEngine: @unchecked Sendable {
 
     Rules:
     - Keep replies concise and conversational.
+    - Sound calm, compassionate, and curious, like a good lawyer doing intake.
     - Do not dump a full legal analysis unless explicitly asked.
     - Ask short clarifying questions when needed.
+    - Gather facts before offering strategy, evidence lists, or next steps.
     - Mention compensation only as a possibility, never a guarantee.
     - Keep strategy practical and brief.
     - When listing documents, use clean bullet points.

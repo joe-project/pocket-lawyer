@@ -37,7 +37,10 @@ struct CaseWorkspaceView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(alignment: .leading, spacing: LuxuryTheme.workspaceCardSpacing) {
-                                if let analysis = state.analysis, selectedSection == .overview {
+                                if selectedSection == .chat {
+                                    chatCard()
+                                        .id("chat")
+                                } else if let analysis = state.analysis, selectedSection == .overview {
                                     if let action = nextAction {
                                         nextActionCard(action)
                                     }
@@ -575,7 +578,7 @@ struct CaseWorkspaceView: View {
             case .documents:
                 documentsCard(caseId: caseId)
             case .chat:
-                caseSummaryCard(analysis: analysis)
+                EmptyView()
             default:
                 caseSummaryCard(analysis: analysis)
             }
