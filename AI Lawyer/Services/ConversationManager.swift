@@ -367,10 +367,12 @@ final class ConversationManager: ObservableObject {
 
                 Stage: initial case intake.
                 Respond with:
-                - a very short summary of what the user said
-                - one sentence saying they may be entitled to compensation if the facts support it
-                - exactly 3 clarifying questions
-                Keep it concise. No large headers.
+                - one very short sentence summarizing what the user said
+                - one short sentence saying they may be entitled to compensation if the facts support it
+                - one short sentence asking if they would like to hear a short strategy
+                - exactly 2 short clarifying questions
+                Keep it under 5 short lines total.
+                No headers. No long explanation. Sound calm and conversational.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -382,9 +384,9 @@ final class ConversationManager: ObservableObject {
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
                 Stage: clarification complete.
-                Briefly acknowledge the user's answers in 1 sentence.
-                Then ask: "Would you like me to give you a primary and secondary strategy?"
-                Keep it under 3 short sentences.
+                Briefly acknowledge the user's answers in 1 short sentence.
+                Then ask exactly: "Would you like to hear a short strategy?"
+                Keep it under 2 short sentences.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -396,7 +398,8 @@ final class ConversationManager: ObservableObject {
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
                 The user is in ongoing case Q&A.
-                Answer the user's question briefly and practically.
+                Answer the user's question briefly and practically in plain language.
+                Use no more than 3 short sentences.
                 End with: "Do you have any other questions?"
                 """,
                 userText: latestUserMessage,
@@ -427,7 +430,7 @@ final class ConversationManager: ObservableObject {
     private func handleStrategyConsentReply(_ text: String, caseId: UUID) async -> String? {
         guard let decision = normalizedDecision(text) else { return nil }
         if decision == false {
-            let content = "Okay. Keep sharing details or ask a question when you're ready."
+            let content = "Okay. Tell me a little more about what happened, or ask me a question."
             _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
             setStage(.awaitingClarificationAnswers, for: caseId)
             return content
@@ -438,9 +441,10 @@ final class ConversationManager: ObservableObject {
             \(AIEngine.guidedCaseChatSystemPrompt)
 
             Stage: strategy offer accepted.
-            Give a concise primary strategy and a concise secondary strategy.
-            Then ask if the user wants to proceed with the primary strategy.
-            Keep it short.
+            Give one short primary strategy and one short secondary strategy.
+            Use very plain language.
+            Then ask exactly: "Would you like to proceed?"
+            Keep it under 4 short lines total.
             """,
             latestUserText: text,
             previousMessages: messagesForCase(caseId: caseId)
@@ -454,7 +458,7 @@ final class ConversationManager: ObservableObject {
     private func handleProceedConsentReply(_ text: String, caseId: UUID) async -> String? {
         guard let decision = normalizedDecision(text) else { return nil }
         if decision == false {
-            let content = "Okay. We can stay with strategy for now. Do you have any questions?"
+            let content = "Okay. We can pause there. Do you have any questions?"
             _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
             setStage(.awaitingQuestionDecision, for: caseId)
             return content
@@ -466,6 +470,7 @@ final class ConversationManager: ObservableObject {
 
             Stage: proceed with the strategy.
             Give a short proceed plan with immediate next steps.
+            Use plain language and no more than 3 bullet points.
             Then ask exactly: "Do you have any questions?"
             Keep it concise.
             """,
@@ -481,12 +486,12 @@ final class ConversationManager: ObservableObject {
     private func handleQuestionDecisionReply(_ text: String, caseId: UUID) async -> String? {
         if let decision = normalizedDecision(text) {
             if decision {
-                let content = "Ask your question and I'll answer it."
+                let content = "Ask your question. I'll keep it short and clear."
                 _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
                 setStage(.openQuestionAnswer, for: caseId)
                 return content
             } else {
-                let content = "Would you like me to list the documents needed and add them to your folder?"
+                let content = "Would you like me to list the main documents you should gather and add them to this folder?"
                 _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .documents)
                 setStage(.awaitingDocumentConsent, for: caseId)
                 return content
@@ -503,6 +508,7 @@ final class ConversationManager: ObservableObject {
 
             Stage: answer a follow-up question.
             Answer the user's question briefly and clearly based on the conversation so far.
+            Use no more than 3 short sentences.
             End with either "Do you have any other questions?" or "If not, I can list the documents needed."
             """,
             latestUserText: text,
@@ -517,7 +523,7 @@ final class ConversationManager: ObservableObject {
     private func handleDocumentConsentReply(_ text: String, caseId: UUID) async -> String? {
         guard let decision = normalizedDecision(text) else { return nil }
         if decision == false {
-            let content = "Okay. Ask any questions when you're ready."
+            let content = "Okay. Ask me anything when you're ready."
             _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
             setStage(.completed, for: caseId)
             return content
@@ -528,8 +534,9 @@ final class ConversationManager: ObservableObject {
             \(AIEngine.guidedCaseChatSystemPrompt)
 
             Stage: documents needed.
-            List the documents or records the user should gather next.
+            List the main documents or records the user should gather next.
             Use short bullet points only.
+            Keep the list focused and easy to understand.
             Keep it practical and concise.
             """,
             latestUserText: text,

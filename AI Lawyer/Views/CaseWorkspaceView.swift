@@ -186,8 +186,10 @@ struct CaseWorkspaceView: View {
 
     private func blankSectionWorkspace(caseId: UUID) -> some View {
         VStack(alignment: .leading, spacing: LuxuryTheme.workspaceCardSpacing) {
-            blankSectionCard(title: selectedSection.rawValue)
-            if selectedSection != .overview {
+            if selectedSection == .overview || selectedSection == .chat {
+                chatCard()
+            } else {
+                blankSectionCard(title: selectedSection.rawValue)
                 blankSectionCard(title: "\(selectedSection.rawValue) Notes")
                 chatCard()
             }
@@ -522,7 +524,7 @@ struct CaseWorkspaceView: View {
                     chatBubble(
                         ChatMessage(
                             sender: .ai,
-                            text: "Ask a legal question, start generating a document, or start a case."
+                            text: "Ask me a question, start a case, or make a document."
                         ),
                         isUser: false
                     )
