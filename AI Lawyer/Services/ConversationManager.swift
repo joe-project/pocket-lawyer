@@ -7,6 +7,7 @@ final class ConversationManager: ObservableObject {
         case initialSummary
         case awaitingClarificationAnswers
         case awaitingMoreClarificationAnswers
+        case awaitingFinalClarificationAnswers
         case awaitingStrategyConsent
         case awaitingProceedConsent
         case awaitingQuestionDecision
@@ -168,11 +169,7 @@ final class ConversationManager: ObservableObject {
                     """
                     That sounds frustrating, and you may have a basis to seek compensation depending on the facts.
 
-                    A few quick questions so I can understand it better:
-                    • How long has the toilet been unusable?
-                    • Have you told the landlord in writing, and do you have texts or emails?
-                    • What city and state is the rental in?
-                    • Are you on a lease, and how much rent do you pay?
+                    To start, how long has the toilet been unusable, and have you told the landlord in writing?
                     """,
                     .history,
                     .awaitingClarificationAnswers
@@ -183,11 +180,7 @@ final class ConversationManager: ObservableObject {
                 """
                 I’m sorry you’re dealing with that, and you may have a basis for compensation depending on the facts.
 
-                A few quick questions so I can understand it better:
-                • When did this start?
-                • Who was involved?
-                • Do you have any messages, photos, or documents?
-                • What outcome are you hoping for?
+                To start, when did this begin, and who is involved?
                 """,
                 .history,
                 .awaitingClarificationAnswers
@@ -197,10 +190,9 @@ final class ConversationManager: ObservableObject {
             if isHousingIssue {
                 return (
                     """
-                    Thanks, that helps. A few more details will help me tighten this up:
-                    • Is there another working bathroom in the home?
-                    • Has this caused hotel costs, health issues, or other out-of-pocket losses?
-                    • Did the landlord give any response or repair date?
+                    Thank you. That helps me understand the situation better.
+
+                    What city and state is the rental in, and are you on a lease?
                     """,
                     .history,
                     .awaitingMoreClarificationAnswers
@@ -209,18 +201,56 @@ final class ConversationManager: ObservableObject {
 
             return (
                 """
-                Thanks, that helps. A few more details will help me narrow this down:
-                • Has this caused you any money loss, missed work, or other harm?
-                • Have you reported it to anyone or gotten a response back?
-                • Is there a deadline, hearing, notice, or document tied to this?
+                Thank you. That helps me understand the situation better.
+
+                Do you have any messages, photos, or documents, and has this caused you any money loss or other harm?
                 """,
                 .history,
                 .awaitingMoreClarificationAnswers
             )
 
         case .awaitingMoreClarificationAnswers:
+            if isHousingIssue {
+                return (
+                    """
+                    I understand. Thank you for walking me through that.
+
+                    Is there another working bathroom in the home, and has this caused any hotel costs, health issues, or other out-of-pocket losses?
+                    """,
+                    .history,
+                    .awaitingFinalClarificationAnswers
+                )
+            }
+
             return (
-                "Thanks, that gives me a clearer picture. Would you like me to put together a short strategy for you?",
+                """
+                I understand. Thank you for walking me through that.
+
+                Is there a deadline, hearing, notice, or response I should know about before I map out next steps?
+                """,
+                .history,
+                .awaitingFinalClarificationAnswers
+            )
+
+        case .awaitingFinalClarificationAnswers:
+            if isHousingIssue {
+                return (
+                    """
+                    That gives me a much clearer picture.
+
+                    Would you like me to put together a short strategy for you?
+                    """,
+                    .history,
+                    .awaitingStrategyConsent
+                )
+            }
+
+            return (
+                """
+                That gives me a much clearer picture.
+
+                Would you like me to put together a short strategy for you?
+                """,
                 .history,
                 .awaitingStrategyConsent
             )
@@ -331,7 +361,7 @@ final class ConversationManager: ObservableObject {
                 if let response = await answerFollowUpQuestion(last.content, caseId: caseId) {
                     return response
                 }
-            case .initialSummary, .awaitingClarificationAnswers, .awaitingMoreClarificationAnswers, .completed:
+            case .initialSummary, .awaitingClarificationAnswers, .awaitingMoreClarificationAnswers, .awaitingFinalClarificationAnswers, .completed:
                 break
             }
         }
@@ -494,6 +524,20 @@ final class ConversationManager: ObservableObject {
                 nextStage: .awaitingMoreClarificationAnswers
             )
         case .awaitingMoreClarificationAnswers:
+            return (
+                prompt: """
+                \(AIEngine.guidedCaseChatSystemPrompt)
+
+                Stage: continue fact gathering.
+                Briefly acknowledge the user's answers in 1 short sentence.
+                Then ask 1 or 2 short clarifying questions that help complete the factual picture.
+                Keep it concise and conversational.
+                """,
+                userText: latestUserMessage,
+                targetSubfolder: .history,
+                nextStage: .awaitingFinalClarificationAnswers
+            )
+        case .awaitingFinalClarificationAnswers:
             return (
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
