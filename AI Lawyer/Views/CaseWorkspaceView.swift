@@ -414,10 +414,26 @@ struct CaseWorkspaceView: View {
 
     // MARK: - Timeline card
 
+    private func courtCaseNumberBinding(caseId: UUID) -> Binding<String> {
+        Binding(
+            get: {
+                caseTreeViewModel.cases.first(where: { $0.id == caseId })?.courtCaseNumber ?? ""
+            },
+            set: { caseTreeViewModel.setCourtCaseNumber(id: caseId, number: $0) }
+        )
+    }
+
     private func timelineCard(caseId: UUID) -> some View {
         let events = caseTreeViewModel.events(for: caseId)
         return VStack(alignment: .leading, spacing: 16) {
             WorkspaceCardHeader(icon: "📅", title: "Timeline")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Court case number (after the court assigns it)")
+                    .pocketSecondaryMonospaced(size: 12)
+                TextField("e.g. 24-CV-12345", text: courtCaseNumberBinding(caseId: caseId))
+                    .textFieldStyle(.roundedBorder)
+                    .font(LuxuryTheme.bodyFont(size: 15))
+            }
             if events.isEmpty {
                 Text("No timeline events yet. Tasks, filings, and evidence will appear here.")
                     .pocketSecondaryMonospaced(size: 14)
@@ -520,27 +536,27 @@ struct CaseWorkspaceView: View {
         let content = VStack(alignment: .leading, spacing: 16) {
             if messages.isEmpty {
                 HStack(alignment: .top) {
-                    Spacer(minLength: 40)
-                    chatBubble(
+                    assistantMessageView(
                         ChatMessage(
                             sender: .ai,
                             text: "Ask me a question, start a case, or make a document."
-                        ),
-                        isUser: false
+                        )
                     )
                 }
             } else {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 18) {
                     ForEach(messages.suffix(20)) { message in
                         HStack(alignment: .top) {
                             if message.sender == .user {
-                                chatBubble(message, isUser: true)
-                                Spacer(minLength: 40)
+                                Spacer(minLength: 52)
+                                userMessageView(message)
                             } else {
-                                Spacer(minLength: 40)
-                                chatBubble(message, isUser: false)
+                                assistantMessageView(message)
                             }
                         }
+                    }
+                    if chatViewModel.isSending {
+                        assistantTypingIndicatorView()
                     }
                 }
             }
@@ -558,7 +574,10 @@ struct CaseWorkspaceView: View {
         return Group {
             if selectedSection == .chat {
                 content
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.black)
             } else {
                 content
                     .padding(LuxuryTheme.workspaceCardPadding)
@@ -680,18 +699,49 @@ struct CaseWorkspaceView: View {
         )
     }
 
-    private func chatBubble(_ message: ChatMessage, isUser: Bool) -> some View {
+    private func userMessageView(_ message: ChatMessage) -> some View {
         Text(message.text)
             .font(LuxuryTheme.bodyFont(size: 15))
-            .padding(12)
-            .background(isUser ? LuxuryTheme.surfaceCard : Color(red: 1, green: 122/255, blue: 89/255, opacity: 0.12))
+            .lineSpacing(2)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(Color(red: 50/255, green: 36/255, blue: 57/255))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(LuxuryTheme.cardBorder, lineWidth: 1)
+                    .stroke(Color(red: 110/255, green: 77/255, blue: 132/255, opacity: 0.8), lineWidth: 1)
             )
             .cornerRadius(14)
-            .foregroundColor(AppColors.textPrimary)
-            .frame(maxWidth: 280, alignment: isUser ? .leading : .trailing)
+            .foregroundColor(.white)
+            .frame(maxWidth: 292, alignment: .trailing)
+    }
+
+    private func assistantMessageView(_ message: ChatMessage) -> some View {
+        Text(message.text)
+            .font(LuxuryTheme.bodyFont(size: 17))
+            .lineSpacing(4)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 18)
+    }
+
+    private func assistantTypingIndicatorView() -> some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(Color.white.opacity(0.58))
+                    .frame(width: 8, height: 8)
+                    .scaleEffect(chatViewModel.isSending ? 0.9 : 0.72)
+                    .opacity(chatViewModel.isSending ? 0.72 : 0.28)
+                    .animation(
+                        .easeInOut(duration: 0.85)
+                        .repeatForever()
+                        .delay(Double(index) * 0.22),
+                        value: chatViewModel.isSending
+                    )
+            }
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Next action card

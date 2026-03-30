@@ -179,6 +179,8 @@ struct CaseFolder: Identifiable, Codable {
     var emailDrafts: [EmailDraft]
     /// Deadlines identified from evidence or case (e.g. response due, filing deadline).
     var deadlines: [LegalDeadline]
+    /// Assigned by the court after filing; user-entered when known.
+    var courtCaseNumber: String?
 
     init(id: UUID = UUID(),
          title: String,
@@ -187,7 +189,8 @@ struct CaseFolder: Identifiable, Codable {
          customFolderNames: [CaseSubfolder: String] = [:],
          hiddenSubfolders: [CaseSubfolder] = [.response, .recordings, .history, .filedDocuments],
          emailDrafts: [EmailDraft] = [],
-         deadlines: [LegalDeadline] = []) {
+         deadlines: [LegalDeadline] = [],
+         courtCaseNumber: String? = nil) {
         self.id = id
         self.title = title
         self.category = category
@@ -201,10 +204,11 @@ struct CaseFolder: Identifiable, Codable {
         self.hiddenSubfolders = hiddenSubfolders
         self.emailDrafts = emailDrafts
         self.deadlines = deadlines
+        self.courtCaseNumber = courtCaseNumber
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, category, subfolders, customFolderNames, hiddenSubfolders, emailDrafts, deadlines
+        case id, title, category, subfolders, customFolderNames, hiddenSubfolders, emailDrafts, deadlines, courtCaseNumber
     }
 
     init(from decoder: Decoder) throws {
@@ -217,6 +221,7 @@ struct CaseFolder: Identifiable, Codable {
         hiddenSubfolders = try c.decodeIfPresent([CaseSubfolder].self, forKey: .hiddenSubfolders) ?? [.response, .recordings, .history, .filedDocuments]
         emailDrafts = try c.decodeIfPresent([EmailDraft].self, forKey: .emailDrafts) ?? []
         deadlines = try c.decodeIfPresent([LegalDeadline].self, forKey: .deadlines) ?? []
+        courtCaseNumber = try c.decodeIfPresent(String.self, forKey: .courtCaseNumber)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -229,6 +234,7 @@ struct CaseFolder: Identifiable, Codable {
         try c.encode(hiddenSubfolders, forKey: .hiddenSubfolders)
         try c.encode(emailDrafts, forKey: .emailDrafts)
         try c.encode(deadlines, forKey: .deadlines)
+        try c.encodeIfPresent(courtCaseNumber, forKey: .courtCaseNumber)
     }
 
     func displayName(for subfolder: CaseSubfolder) -> String {

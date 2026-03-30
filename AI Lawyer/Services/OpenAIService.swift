@@ -31,13 +31,13 @@ EVIDENCE NEEDED
 [List documents, witnesses, photos, records, or other evidence the user should gather.]
 
 TIMELINE OF EVENTS
-[Key dates and sequence of events. Use bullet points or numbered lines; include dates when known (e.g. "Jan 15 – Incident occurred").]
+[Key facts and sequence (what happened). Then add procedural items that apply: court dates and hearings; filing deadlines; evidence-gathering or preservation windows; deadlines to respond to court or opposing filings; court-prep milestones; waiting periods before service; estimated or actual service dates after filing; discovery or dispositive motion cutoffs. Use bullet points; use "TBD" when a date is unknown.]
 
 NEXT STEPS
 [Concrete legal steps, e.g. 1. Preserve evidence 2. Send demand letter 3. File complaint 4. Consult an attorney.]
 
 DOCUMENTS TO PREPARE
-[Forms, complaints, motions, or other documents that may be required.]
+[Forms, complaints, motions, or other documents that may be required. Name drafts after the filing the user will use (e.g. "Complaint" or "Petition") when possible.]
 
 WHERE TO FILE
 [Relevant courts, agencies (e.g. EEOC, state AG, small claims), or venues to file with.]

@@ -3,6 +3,13 @@ import Combine
 
 @MainActor
 final class ConversationManager: ObservableObject {
+    struct AppliedCaseUpdate {
+        let caseId: UUID
+        let subfolder: CaseSubfolder
+        let fileId: UUID?
+        let confirmation: String
+    }
+
     private enum GuidedCaseStage: String {
         case initialSummary
         case awaitingClarificationAnswers
@@ -16,10 +23,16 @@ final class ConversationManager: ObservableObject {
         case completed
     }
 
+    private enum PendingCaseUpdate {
+        case addToEvidence(caseId: UUID, sourceText: String, attachmentNames: [String], attachmentContents: [String])
+        case updateTimeline(caseId: UUID, sourceText: String)
+    }
+
     @Published var messages: [Message] = []
     /// True after answering a user question while intake was active; UI can show "Resume intake".
     @Published var offeringResumeIntake: Bool = false
     @Published private(set) var pendingFolderSuggestionCaseId: UUID?
+    @Published private(set) var pendingCaseUpdateCaseId: UUID?
     /// Case ids currently being analyzed by background reasoning (and/or awaiting AI pipeline completion).
     @Published private(set) var analyzingCaseIds: Set<UUID> = []
 
@@ -33,6 +46,8 @@ final class ConversationManager: ObservableObject {
     private var isProcessingReasoning = false
     private var lastFolderSuggestionUserCount: [UUID: Int] = [:]
     private var guidedStages: [UUID: GuidedCaseStage] = [:]
+    private var pendingCaseUpdates: [UUID: PendingCaseUpdate] = [:]
+    private var lastSuggestedUpdateMessageIds: [UUID: UUID] = [:]
 
     /// When set, case analysis is stored here and the dashboard can refresh from it.
     weak var caseManager: CaseManager?
@@ -125,6 +140,104 @@ final class ConversationManager: ObservableObject {
         pendingFolderSuggestionCaseId = nil
     }
 
+    func clearPendingCaseUpdateSuggestion(for caseId: UUID) {
+        pendingCaseUpdates.removeValue(forKey: caseId)
+        if pendingCaseUpdateCaseId == caseId {
+            pendingCaseUpdateCaseId = nil
+        }
+    }
+
+    func hasPendingCaseUpdate(for caseId: UUID) -> Bool {
+        pendingCaseUpdates[caseId] != nil
+    }
+
+    func resolvePendingCaseUpdateReply(_ text: String, currentCaseId: UUID) -> AppliedCaseUpdate? {
+        guard let pending = pendingCaseUpdates[currentCaseId] else { return nil }
+        guard let decision = normalizedDecision(text) else { return nil }
+
+        defer { clearPendingCaseUpdateSuggestion(for: currentCaseId) }
+
+        guard decision else {
+            let confirmation = "Okay. I’ll leave your folders as they are for now."
+            addLocalAssistantMessage(confirmation, caseId: currentCaseId)
+            return AppliedCaseUpdate(caseId: currentCaseId, subfolder: .history, fileId: nil, confirmation: confirmation)
+        }
+
+        switch pending {
+        case .addToEvidence(let caseId, let sourceText, let attachmentNames, let attachmentContents):
+            let applied = applyEvidenceUpdate(
+                caseId: caseId,
+                sourceText: sourceText,
+                attachmentNames: attachmentNames,
+                attachmentContents: attachmentContents
+            )
+            let title = caseTreeViewModel?.cases.first(where: { $0.id == caseId })?.title ?? "this case"
+            let confirmation = "Added that to the evidence folder for \(title)."
+            addLocalAssistantMessage(confirmation, caseId: caseId)
+            return AppliedCaseUpdate(caseId: caseId, subfolder: .evidence, fileId: applied, confirmation: confirmation)
+        case .updateTimeline(let caseId, let sourceText):
+            let applied = applyTimelineUpdate(caseId: caseId, sourceText: sourceText)
+            let title = caseTreeViewModel?.cases.first(where: { $0.id == caseId })?.title ?? "this case"
+            let confirmation = "Updated the timeline for \(title)."
+            addLocalAssistantMessage(confirmation, caseId: caseId)
+            return AppliedCaseUpdate(caseId: caseId, subfolder: .timeline, fileId: applied, confirmation: confirmation)
+        }
+    }
+
+    func handleDirectCaseCommandIfNeeded(
+        _ text: String,
+        currentCaseId: UUID,
+        attachmentNames: [String],
+        attachmentContents: [String]
+    ) -> AppliedCaseUpdate? {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard looksLikeCrossCaseCommand(normalized) else { return nil }
+
+        let targetCaseId = targetCaseId(from: normalized) ?? currentCaseId
+
+        if normalized.contains("timeline")
+            || normalized.contains("deadline")
+            || normalized.contains("court date")
+            || normalized.contains("serve")
+            || normalized.contains("hearing")
+            || normalized.contains("filing")
+            || normalized.contains("waiting period")
+            || normalized.contains("gathering")
+            || normalized.contains("prep ") {
+            let sourceText = reusableSourceText(for: currentCaseId, fallback: text)
+            let fileId = applyTimelineUpdate(caseId: targetCaseId, sourceText: sourceText)
+            let title = caseTreeViewModel?.cases.first(where: { $0.id == targetCaseId })?.title ?? "this case"
+            let confirmation = "Updated the timeline for \(title)."
+            addLocalAssistantMessage(confirmation, caseId: targetCaseId)
+            return AppliedCaseUpdate(caseId: targetCaseId, subfolder: .timeline, fileId: fileId, confirmation: confirmation)
+        }
+
+        if normalized.contains("evidence") || !attachmentNames.isEmpty || normalized.contains("photo") || normalized.contains("image") || normalized.contains("text message") {
+            let sourceText = reusableSourceText(for: currentCaseId, fallback: text)
+            let fileId = applyEvidenceUpdate(
+                caseId: targetCaseId,
+                sourceText: sourceText,
+                attachmentNames: attachmentNames,
+                attachmentContents: attachmentContents
+            )
+            let title = caseTreeViewModel?.cases.first(where: { $0.id == targetCaseId })?.title ?? "this case"
+            let confirmation = "Added that to the evidence folder for \(title)."
+            addLocalAssistantMessage(confirmation, caseId: targetCaseId)
+            return AppliedCaseUpdate(caseId: targetCaseId, subfolder: .evidence, fileId: fileId, confirmation: confirmation)
+        }
+
+        if normalized.contains("document") || normalized.contains("note") || normalized.contains("history") || normalized.contains("case") {
+            let sourceText = reusableSourceText(for: currentCaseId, fallback: text)
+            let fileId = applyHistoryUpdate(caseId: targetCaseId, sourceText: sourceText)
+            let title = caseTreeViewModel?.cases.first(where: { $0.id == targetCaseId })?.title ?? "this case"
+            let confirmation = "Added that to \(title)."
+            addLocalAssistantMessage(confirmation, caseId: targetCaseId)
+            return AppliedCaseUpdate(caseId: targetCaseId, subfolder: .history, fileId: fileId, confirmation: confirmation)
+        }
+
+        return nil
+    }
+
     func suggestedFolderTitle(for caseId: UUID) -> String {
         let text = messagesForCase(caseId: caseId)
             .filter { $0.role == "user" }
@@ -190,7 +303,7 @@ final class ConversationManager: ObservableObject {
             if isHousingIssue {
                 return (
                     """
-                    Thank you. That helps me understand the situation better.
+                    Thank you. That helps me understand the situation better. In many states, a landlord has to keep essential plumbing working.
 
                     What city and state is the rental in, and are you on a lease?
                     """,
@@ -260,6 +373,197 @@ final class ConversationManager: ObservableObject {
         }
     }
 
+    private func responseDelayNanoseconds(for text: String) -> UInt64 {
+        let trimmedCount = text.trimmingCharacters(in: .whitespacesAndNewlines).count
+        let base: UInt64 = 1_600_000_000
+        let extra = min(UInt64(trimmedCount) * 4_000_000, 1_100_000_000)
+        return base + extra
+    }
+
+    private func pauseBeforeReply(_ text: String) async {
+        try? await Task.sleep(nanoseconds: responseDelayNanoseconds(for: text))
+    }
+
+    private func normalizedCaseTitle(_ title: String) -> String {
+        title.lowercased()
+            .replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "&", with: "and")
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    private func targetCaseId(from normalizedText: String) -> UUID? {
+        if let id = caseTreeViewModel?.cases.first(where: { folder in
+            let title = normalizedCaseTitle(folder.title)
+            return !title.isEmpty && normalizedText.contains(title)
+        })?.id {
+            return id
+        }
+        return targetCaseIdByOverlap(from: normalizedText)
+    }
+
+    /// Matches "the Smith case" / "Jones vs Smith folder" when the full title substring is not present.
+    private func targetCaseIdByOverlap(from normalizedText: String) -> UUID? {
+        guard let caseList = caseTreeViewModel?.cases else { return nil }
+        let impliesCase = normalizedText.contains("case")
+            || normalizedText.contains("matter")
+            || normalizedText.contains("folder")
+            || normalizedText.contains("file")
+            || normalizedText.contains("lawsuit")
+        guard impliesCase else { return nil }
+
+        let userWords = significantWordsForCaseRouting(normalizedText)
+        guard userWords.count >= 1 else { return nil }
+
+        var best: (UUID, Int)?
+        for folder in caseList {
+            let titleWords = significantWordsForCaseRouting(normalizedCaseTitle(folder.title))
+            guard !titleWords.isEmpty else { continue }
+            let overlap = userWords.intersection(titleWords).count
+            if overlap >= 1, best == nil || overlap > best!.1 {
+                best = (folder.id, overlap)
+            }
+        }
+        return best?.0
+    }
+
+    private func significantWordsForCaseRouting(_ text: String) -> Set<String> {
+        let stop: Set<String> = [
+            "the", "a", "an", "to", "for", "in", "on", "at", "and", "or", "my", "me", "we", "our",
+            "this", "that", "these", "those", "add", "put", "update", "into", "from", "with", "about",
+            "case", "matter", "folder", "file", "lawsuit", "pocket", "lawyer", "please", "just", "also",
+            "vs", "v", "versus", "new", "here", "there", "photo", "image", "picture", "note", "document"
+        ]
+        let words = text
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty && !stop.contains($0) }
+        return Set(words)
+    }
+
+    private func looksLikeCrossCaseCommand(_ normalized: String) -> Bool {
+        if normalized.contains("add ") || normalized.contains("update ") { return true }
+        if normalized.contains("put this") || normalized.contains("put that") || normalized.contains("put it ") { return true }
+        if normalized.contains("attach ") || normalized.contains("save to ") { return true }
+        if normalized.contains("into ") && (normalized.contains("case") || normalized.contains("folder")) { return true }
+        return false
+    }
+
+    private func reusableSourceText(for caseId: UUID, fallback: String) -> String {
+        let trimmedFallback = fallback.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = trimmedFallback.lowercased()
+        let isCommandOnly = normalized.contains("add that") || normalized.contains("add this") || normalized.contains("add it") || normalized.contains("update the timeline")
+
+        if !trimmedFallback.isEmpty && !isCommandOnly {
+            return trimmedFallback
+        }
+
+        return messagesForCase(caseId: caseId)
+            .reversed()
+            .first(where: { $0.role == "user" && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })?
+            .content
+            ?? trimmedFallback
+    }
+
+    @discardableResult
+    private func applyHistoryUpdate(caseId: UUID, sourceText: String) -> UUID? {
+        caseTreeViewModel?.addVersionedTextArtifact(
+            caseId: caseId,
+            subfolder: .history,
+            baseName: "Case Notes",
+            content: sourceText,
+            responseTag: .note,
+            timelineTitle: "Case notes updated",
+            timelineSummary: sourceText.prefix(180).description
+        )
+    }
+
+    @discardableResult
+    private func applyTimelineUpdate(caseId: UUID, sourceText: String) -> UUID? {
+        caseTreeViewModel?.addVersionedTextArtifact(
+            caseId: caseId,
+            subfolder: .timeline,
+            baseName: "Live Timeline",
+            content: sourceText,
+            responseTag: .note,
+            timelineTitle: "Timeline updated",
+            timelineSummary: sourceText.prefix(180).description
+        )
+    }
+
+    @discardableResult
+    private func applyEvidenceUpdate(caseId: UUID, sourceText: String, attachmentNames: [String], attachmentContents: [String]) -> UUID? {
+        let tree = caseTreeViewModel
+        var lastFileId: UUID?
+
+        if !sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            lastFileId = tree?.addVersionedTextArtifact(
+                caseId: caseId,
+                subfolder: .evidence,
+                baseName: "Evidence List",
+                content: sourceText,
+                responseTag: .evidence,
+                timelineTitle: "Evidence updated",
+                timelineSummary: sourceText.prefix(180).description
+            )
+        }
+
+        for (index, name) in attachmentNames.enumerated() {
+            let attachmentText = index < attachmentContents.count ? attachmentContents[index] : ""
+            let content = attachmentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? "Attachment added: \(name)"
+                : attachmentText
+            lastFileId = tree?.addVersionedTextArtifact(
+                caseId: caseId,
+                subfolder: .evidence,
+                baseName: name,
+                content: content,
+                responseTag: .evidence,
+                timelineTitle: "Evidence added",
+                timelineSummary: name
+            )
+        }
+
+        return lastFileId
+    }
+
+    private func maybeOfferCaseUpdateSuggestion(for userMessage: Message, caseId: UUID) {
+        guard pendingCaseUpdates[caseId] == nil else { return }
+        guard lastSuggestedUpdateMessageIds[caseId] != userMessage.id else { return }
+
+        let lower = userMessage.content.lowercased()
+        let title = caseTreeViewModel?.cases.first(where: { $0.id == caseId })?.title ?? "this case"
+        let hasAttachments = !userMessage.attachmentNames.isEmpty
+        let looksLikeEvidence = hasAttachments || ["photo", "image", "notice", "lease", "text", "email", "invoice", "receipt", "screenshot", "video", "recording"].contains { lower.contains($0) }
+        let looksLikeTimeline = [
+            "date", "deadline", "hearing", "served", "serve", "service", "filed", "filing", "court",
+            "response due", "waiting period", "gathering", "prep", "trial", "mediation", "motion",
+            "discovery", "subpoena", "summons", "estimate", "estimated", "by when", "due date"
+        ].contains { lower.contains($0) }
+
+        if looksLikeEvidence {
+            pendingCaseUpdates[caseId] = .addToEvidence(
+                caseId: caseId,
+                sourceText: userMessage.content,
+                attachmentNames: userMessage.attachmentNames,
+                attachmentContents: userMessage.attachmentContents
+            )
+            pendingCaseUpdateCaseId = caseId
+            lastSuggestedUpdateMessageIds[caseId] = userMessage.id
+            addLocalAssistantMessage("Would you like me to add this to the evidence folder for \(title)?", caseId: caseId)
+            return
+        }
+
+        if looksLikeTimeline {
+            pendingCaseUpdates[caseId] = .updateTimeline(caseId: caseId, sourceText: userMessage.content)
+            pendingCaseUpdateCaseId = caseId
+            lastSuggestedUpdateMessageIds[caseId] = userMessage.id
+            addLocalAssistantMessage("Would you like me to update the timeline for \(title)?", caseId: caseId)
+        }
+    }
+
     // MARK: - Single pipeline: typed, voice, and intake answers
 
     /// Single entry point for all user content (typed text, voice transcript, file message, or intake answer). Creates a user Message with optional attachments, stores it via addMessage (triggering CaseReasoningEngine and CaseAnalysis update), gets an AI reply and stores it, then optionally offers to resume intake. Use this for every user submission so all inputs flow through the same pipeline.
@@ -321,6 +625,7 @@ final class ConversationManager: ObservableObject {
         let previous = Array(caseMessages.dropLast())
         if let caseId {
             if let local = localGuidedReply(for: stage(for: caseId), caseId: caseId, latestUserMessage: last.content) {
+                await pauseBeforeReply(local.content)
                 let assistantMessage = appendAssistantResponse(
                     local.content,
                     caseId: caseId,
@@ -378,6 +683,7 @@ final class ConversationManager: ObservableObject {
         switch result {
         case .success(let response):
             print("🔥 AI RESPONSE RECEIVED:", response)
+            await pauseBeforeReply(response)
             let assistantMessage = appendAssistantResponse(
                 response,
                 caseId: caseId,
@@ -399,6 +705,9 @@ final class ConversationManager: ObservableObject {
                 addResumeIntakeOfferMessage(caseId: caseId, fileId: assistantMessage.fileId)
             }
             maybeOfferFolderSuggestion(caseId: caseId)
+            if let caseId {
+                maybeOfferCaseUpdateSuggestion(for: last, caseId: caseId)
+            }
             return response
         case .failure(let error):
             print("getAIReply failed:", error)
@@ -609,6 +918,7 @@ final class ConversationManager: ObservableObject {
             previousMessages: messagesForCase(caseId: caseId)
         )
         guard case .success(let response) = result else { return nil }
+        await pauseBeforeReply(response)
         _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .response)
         setStage(.awaitingProceedConsent, for: caseId)
         return response
@@ -637,6 +947,7 @@ final class ConversationManager: ObservableObject {
             previousMessages: messagesForCase(caseId: caseId)
         )
         guard case .success(let response) = result else { return nil }
+        await pauseBeforeReply(response)
         _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .response)
         setStage(.awaitingQuestionDecision, for: caseId)
         return response
@@ -646,11 +957,13 @@ final class ConversationManager: ObservableObject {
         if let decision = normalizedDecision(text) {
             if decision {
                 let content = "Ask your question. I'll keep it short and clear."
+                await pauseBeforeReply(content)
                 _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
                 setStage(.openQuestionAnswer, for: caseId)
                 return content
             } else {
                 let content = "Would you like me to list the main documents you should gather and add them to this folder?"
+                await pauseBeforeReply(content)
                 _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .documents)
                 setStage(.awaitingDocumentConsent, for: caseId)
                 return content
@@ -674,6 +987,7 @@ final class ConversationManager: ObservableObject {
             previousMessages: messagesForCase(caseId: caseId)
         )
         guard case .success(let response) = result else { return nil }
+        await pauseBeforeReply(response)
         _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
         setStage(.awaitingQuestionDecision, for: caseId)
         return response
@@ -683,6 +997,7 @@ final class ConversationManager: ObservableObject {
         guard let decision = normalizedDecision(text) else { return nil }
         if decision == false {
             let content = "Okay. Ask me anything when you're ready."
+            await pauseBeforeReply(content)
             _ = appendAssistantResponse(content, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
             setStage(.completed, for: caseId)
             return content
@@ -702,6 +1017,7 @@ final class ConversationManager: ObservableObject {
             previousMessages: messagesForCase(caseId: caseId)
         )
         guard case .success(let response) = result else { return nil }
+        await pauseBeforeReply(response)
         _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .documents)
         setStage(.completed, for: caseId)
         return response

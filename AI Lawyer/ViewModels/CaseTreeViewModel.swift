@@ -125,6 +125,14 @@ final class CaseTreeViewModel: ObservableObject {
         save()
     }
 
+    /// Court-assigned number after filing; optional until the user enters it.
+    func setCourtCaseNumber(id: UUID, number: String?) {
+        guard let idx = cases.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = number?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        cases[idx].courtCaseNumber = trimmed.isEmpty ? nil : trimmed
+        save()
+    }
+
     func deleteCase(id: UUID) {
         guard let idx = cases.firstIndex(where: { $0.id == id }) else { return }
         cases.remove(at: idx)
@@ -675,5 +683,54 @@ final class CaseTreeViewModel: ObservableObject {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
         cases[idx].deadlines.append(contentsOf: newDeadlines)
         save()
+    }
+
+    @discardableResult
+    func addVersionedTextArtifact(
+        caseId: UUID,
+        subfolder: CaseSubfolder,
+        baseName: String,
+        content: String,
+        responseTag: ResponseTag = .note,
+        timelineTitle: String? = nil,
+        timelineSummary: String? = nil
+    ) -> UUID? {
+        let trimmedBase = baseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedBase.isEmpty, !trimmedContent.isEmpty else { return nil }
+
+        let next = nextVersionNumber(caseId: caseId, subfolder: subfolder, versionGroup: trimmedBase)
+        let fileId = UUID()
+        let file = CaseFile(
+            id: fileId,
+            name: "\(trimmedBase) v\(next)",
+            type: .note,
+            relativePath: "",
+            createdAt: Date(),
+            caseId: caseId,
+            content: trimmedContent,
+            responseTag: responseTag,
+            versionGroupId: trimmedBase,
+            versionNumber: next
+        )
+
+        addFile(caseId: caseId, subfolder: subfolder, file: file, content: trimmedContent)
+        selectedCase = cases.first(where: { $0.id == caseId }) ?? selectedCase
+        selectedSubfolder = subfolder
+        selectedFileId = fileId
+
+        if let title = timelineTitle {
+            let event = TimelineEvent(
+                kind: .response,
+                title: title,
+                summary: timelineSummary ?? trimmedContent.prefix(180).description,
+                createdAt: Date(),
+                documentId: fileId,
+                subfolder: subfolder
+            )
+            addTimelineEvent(event, caseId: caseId)
+        }
+
+        return fileId
     }
 }
