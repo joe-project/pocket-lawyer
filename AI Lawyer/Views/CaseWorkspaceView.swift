@@ -23,6 +23,7 @@ struct CaseWorkspaceView: View {
 
     private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
     private static let nextActionEngine = NextActionEngine()
+    private static let chatScrollBottomAnchor = "chatScrollBottomAnchor"
     private var selectedSection: CaseWorkspaceSection { caseTreeViewModel.selectedWorkspaceSection }
 
     var body: some View {
@@ -85,9 +86,29 @@ struct CaseWorkspaceView: View {
                                 } else {
                                     blankSectionWorkspace(caseId: state.caseId)
                                 }
+
+                                Color.clear
+                                    .frame(height: 28)
+                                    .id(Self.chatScrollBottomAnchor)
                             }
                             .padding(LuxuryTheme.workspaceCardSpacing)
                             .padding(.bottom, 8)
+                        }
+                        .onChange(of: chatViewModel.messages.count) { _, _ in
+                            scrollChatToBottom(proxy: proxy)
+                        }
+                        .onChange(of: chatViewModel.isSending) { _, isSending in
+                            if !isSending {
+                                scrollChatToBottom(proxy: proxy)
+                            }
+                        }
+                        .onChange(of: conversationManager.messages.count) { _, _ in
+                            scrollChatToBottom(proxy: proxy)
+                        }
+                        .onChange(of: selectedSection) { _, section in
+                            if section == .chat {
+                                scrollChatToBottom(proxy: proxy)
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -213,6 +234,16 @@ struct CaseWorkspaceView: View {
     private func isAnalyzing(caseId: UUID) -> Bool {
         guard selectedSection != .chat else { return false }
         return chatViewModel.isSending || conversationManager.analyzingCaseIds.contains(caseId)
+    }
+
+    /// Keeps the latest chat (and CTAs below it) visible above the bottom `safeAreaInset` input bar.
+    private func scrollChatToBottom(proxy: ScrollViewProxy) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            withAnimation(.easeOut(duration: 0.32)) {
+                proxy.scrollTo(Self.chatScrollBottomAnchor, anchor: .bottom)
+            }
+        }
     }
 
     private var analyzingBanner: some View {
