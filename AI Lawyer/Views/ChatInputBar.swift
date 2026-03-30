@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Bottom chat strip: brand purple stroke, adaptive fill for light/dark.
+/// Bottom chat strip styled closer to mobile ChatGPT while keeping Pocket Lawyer colors.
 struct ChatInputBar: View {
     @ObservedObject var chatViewModel: ChatViewModel
     @ObservedObject var voiceRecorder: VoiceRecorder
@@ -9,24 +9,24 @@ struct ChatInputBar: View {
 
     @AppStorage("isDarkMode") private var isDarkMode = true
 
-    private var fieldFill: Color {
-        isDarkMode ? Color(white: 0.18) : Color(red: 245/255, green: 245/255, blue: 247/255)
+    private var barFill: Color {
+        isDarkMode ? Color(red: 30/255, green: 30/255, blue: 32/255) : Color(red: 245/255, green: 245/255, blue: 247/255)
     }
 
     private var iconTint: Color {
-        isDarkMode ? .white : .black
+        isDarkMode ? Color.white.opacity(0.88) : .black
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Button {
                 showFileImporter = true
             } label: {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .medium))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(iconTint)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 34, height: 34)
                     if !chatViewModel.pendingAttachments.isEmpty {
                         Text("\(chatViewModel.pendingAttachments.count)")
                             .font(.system(size: 9, weight: .bold))
@@ -44,11 +44,8 @@ struct ChatInputBar: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 16))
                 .foregroundColor(isDarkMode ? .white : .black)
-                .padding(.horizontal, 12)
-                .frame(minHeight: 36)
+                .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(fieldFill)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .lineLimit(1...4)
 
             Button {
@@ -67,7 +64,7 @@ struct ChatInputBar: View {
                 Image(systemName: voiceRecorder.isRecording ? "stop.fill" : "mic.fill")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(voiceRecorder.isRecording ? Color.red : iconTint)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 34, height: 34)
             }
             .buttonStyle(.plain)
             .disabled(chatViewModel.isSending)
@@ -76,22 +73,26 @@ struct ChatInputBar: View {
                 chatViewModel.sendCurrentMessage()
             } label: {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(chatViewModel.canSend ? AppColors.brandPurple : AppColors.textSecondary.opacity(0.45))
-                    .frame(width: 36, height: 36)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(chatViewModel.canSend ? .white : AppColors.textSecondary.opacity(0.45))
+                    .frame(width: 34, height: 34)
+                    .background(
+                        Circle()
+                            .fill(chatViewModel.canSend ? AppColors.brandPurple.opacity(0.85) : Color.clear)
+                    )
             }
             .buttonStyle(.plain)
             .disabled(!chatViewModel.canSend)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .fill(isDarkMode ? Color.black.opacity(0.6) : Color.white.opacity(0.9))
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(barFill.opacity(isDarkMode ? 0.98 : 0.96))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .stroke(AppColors.brandPurple.opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(AppColors.brandPurple.opacity(0.18), lineWidth: 1)
         )
         .shadow(
             color: Color.black.opacity(isDarkMode ? 0.4 : 0.1),

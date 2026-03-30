@@ -163,6 +163,20 @@ final class ChatViewModel: ObservableObject {
             return true
         }
 
+        if handlePendingCaseUpdateReplyIfNeeded(text, currentCaseId: caseId, workspace: workspace) {
+            return true
+        }
+
+        if handleDirectCaseCommandIfNeeded(
+            text,
+            currentCaseId: caseId,
+            workspace: workspace,
+            attachmentNames: attachmentNames,
+            attachmentContents: attachmentContents
+        ) {
+            return true
+        }
+
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasAttachments = !attachmentNames.isEmpty
         guard !trimmed.isEmpty || hasAttachments else { return false }
@@ -228,6 +242,49 @@ final class ChatViewModel: ObservableObject {
         }
 
         return false
+    }
+
+    private func handlePendingCaseUpdateReplyIfNeeded(_ text: String, currentCaseId: UUID, workspace: WorkspaceManager) -> Bool {
+        guard conversationManager.hasPendingCaseUpdate(for: currentCaseId) else { return false }
+        guard let applied = conversationManager.resolvePendingCaseUpdateReply(text, currentCaseId: currentCaseId) else { return false }
+
+        if let targetFolder = workspace.caseTreeViewModel.cases.first(where: { $0.id == applied.caseId }) {
+            workspace.selectCase(byFolder: targetFolder)
+            workspace.caseTreeViewModel.selectedWorkspaceSection = applied.subfolder == .timeline ? .timeline : applied.subfolder == .documents ? .documents : .chat
+            workspace.caseTreeViewModel.selectedSubfolder = applied.subfolder
+            workspace.caseTreeViewModel.selectedFileId = applied.fileId
+            selectedCaseId = applied.caseId
+            selectedSubfolder = applied.subfolder
+            selectedFileId = applied.fileId
+        }
+        return true
+    }
+
+    private func handleDirectCaseCommandIfNeeded(
+        _ text: String,
+        currentCaseId: UUID,
+        workspace: WorkspaceManager,
+        attachmentNames: [String],
+        attachmentContents: [String]
+    ) -> Bool {
+        guard let applied = conversationManager.handleDirectCaseCommandIfNeeded(
+            text,
+            currentCaseId: currentCaseId,
+            attachmentNames: attachmentNames,
+            attachmentContents: attachmentContents
+        ) else { return false }
+
+        if let targetFolder = workspace.caseTreeViewModel.cases.first(where: { $0.id == applied.caseId }) {
+            workspace.selectCase(byFolder: targetFolder)
+            workspace.caseTreeViewModel.selectedWorkspaceSection = applied.subfolder == .timeline ? .timeline : .chat
+            workspace.caseTreeViewModel.selectedSubfolder = applied.subfolder
+            workspace.caseTreeViewModel.selectedFileId = applied.fileId
+            selectedCaseId = applied.caseId
+            selectedSubfolder = applied.subfolder
+            selectedFileId = applied.fileId
+        }
+
+        return true
     }
 
     /// Call when the user chooses to resume the intake interview (e.g. after tapping "Resume intake").
