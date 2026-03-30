@@ -7,6 +7,7 @@ struct CaseWorkspaceView: View {
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var conversationManager: ConversationManager
     @EnvironmentObject var caseManager: CaseManager
+    @AppStorage("isDarkMode") private var isDarkMode = true
 
     @State private var nextAction: NextAction?
     @State private var nextActionLoading = false
@@ -86,6 +87,7 @@ struct CaseWorkspaceView: View {
                                 }
                             }
                             .padding(LuxuryTheme.workspaceCardSpacing)
+                            .padding(.bottom, 8)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -97,7 +99,7 @@ struct CaseWorkspaceView: View {
                 emptyStateView
             }
         }
-        .background(AppColors.background)
+        .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
         .sheet(item: $upgradePromptToShow) { prompt in
             UpgradePromptSheet(prompt: prompt) { upgradePromptToShow = nil }
         }
@@ -577,7 +579,7 @@ struct CaseWorkspaceView: View {
                     .padding(.horizontal, 4)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.black)
+                    .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
             } else {
                 content
                     .padding(LuxuryTheme.workspaceCardPadding)
@@ -719,16 +721,17 @@ struct CaseWorkspaceView: View {
         Text(message.text)
             .font(LuxuryTheme.bodyFont(size: 17))
             .lineSpacing(4)
-            .foregroundColor(.white)
+            .foregroundColor(isDarkMode ? .white : AppColors.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.trailing, 18)
     }
 
     private func assistantTypingIndicatorView() -> some View {
-        HStack(spacing: 8) {
+        let dotColor = isDarkMode ? Color.white.opacity(0.58) : AppColors.textSecondary.opacity(0.55)
+        return HStack(spacing: 8) {
             ForEach(0..<3, id: \.self) { index in
                 Circle()
-                    .fill(Color.white.opacity(0.58))
+                    .fill(dotColor)
                     .frame(width: 8, height: 8)
                     .scaleEffect(chatViewModel.isSending ? 0.9 : 0.72)
                     .opacity(chatViewModel.isSending ? 0.72 : 0.28)

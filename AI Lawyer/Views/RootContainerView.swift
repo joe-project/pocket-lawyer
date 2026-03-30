@@ -74,7 +74,7 @@ struct RootContainerView: View {
                         .frame(width: sidebarWidth)
                         .offset(x: sidebarOffset)
                         .simultaneousGesture(sidebarCloseDragGesture)
-                        .ignoresSafeArea(edges: .vertical)
+                        .ignoresSafeArea(edges: .top)
                         .zIndex(2)
 
                         Capsule()
@@ -97,12 +97,26 @@ struct RootContainerView: View {
                             )
                             .gesture(sidebarHandleDragGesture)
                             .zIndex(11)
+
+                        if !isSidebarOpen {
+                            GeometryReader { geo in
+                                HStack(spacing: 0) {
+                                    Color.clear
+                                        .frame(width: geo.size.width * 0.25)
+                                        .frame(maxHeight: .infinity)
+                                        .contentShape(Rectangle())
+                                        .simultaneousGesture(leftEdgeOpenSidebarGesture)
+                                    Spacer(minLength: 0)
+                                }
+                            }
+                            .allowsHitTesting(true)
+                            .zIndex(5)
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
-                .ignoresSafeArea(edges: .bottom)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     ChatInputBar(
                         chatViewModel: workspace.chatViewModel,
@@ -184,6 +198,20 @@ struct RootContainerView: View {
                         isSidebarOpen = true
                         sidebarOffset = 0
                     }
+                }
+            }
+    }
+
+    /// Wider left-edge zone (25% of screen) to open the folder sidebar when it is closed.
+    private var leftEdgeOpenSidebarGesture: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onEnded { value in
+                let horizontal = abs(value.translation.width)
+                let vertical = abs(value.translation.height)
+                guard horizontal > vertical, value.translation.width > 50 else { return }
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+                    isSidebarOpen = true
+                    sidebarOffset = 0
                 }
             }
     }

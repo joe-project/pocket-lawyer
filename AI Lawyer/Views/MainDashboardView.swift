@@ -127,7 +127,6 @@ struct MainContentView: View {
                 .padding(.bottom, 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
-                .ignoresSafeArea(edges: .bottom)
         }
         .sheet(isPresented: $showAddEvidenceSheet) {
             AddEvidenceView()
