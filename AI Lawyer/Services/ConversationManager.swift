@@ -39,6 +39,8 @@ final class ConversationManager: ObservableObject {
     private let aiEngine: AIEngine
     private let caseReasoningEngine: CaseReasoningEngine
     private let caseBriefEngine = CaseBriefEngine()
+    private let legalSignalExtractor = LegalSignalExtractor()
+    private let conversationPlanner = ConversationPlanner()
     private let messageBatcher = MessageBatcher()
     private let jobQueue = AIJobQueue()
     private let contextCache = CaseContextCache()
@@ -266,98 +268,46 @@ final class ConversationManager: ObservableObject {
     }
 
     private func localGuidedReply(for stage: GuidedCaseStage, caseId: UUID, latestUserMessage: String) -> (content: String, targetSubfolder: CaseSubfolder, nextStage: GuidedCaseStage)? {
-        let combinedUserText = messagesForCase(caseId: caseId)
-            .filter { $0.role == "user" }
-            .map(\.content)
-            .joined(separator: " ")
-            .lowercased()
-
-        let housingKeywords = ["landlord", "rent", "lease", "apartment", "toilet", "bathroom", "repair", "plumbing", "tenant", "eviction"]
-        let isHousingIssue = housingKeywords.contains { combinedUserText.contains($0) || latestUserMessage.lowercased().contains($0) }
+        let payload = legalSignalExtractor.extract(from: latestUserMessage)
+        let userMessageCount = messagesForCase(caseId: caseId).filter { $0.role == "user" }.count
+        let plan = conversationPlanner.makePlan(payload: payload, userMessageCount: userMessageCount)
+        let questionText = Array(plan.nextQuestions.prefix(2)).map(\.text).joined(separator: " ")
 
         switch stage {
         case .initialSummary:
-            if isHousingIssue {
-                return (
-                    """
-                    That sounds frustrating, and you may have a basis to seek compensation depending on the facts.
-
-                    To start, how long has the toilet been unusable, and have you told the landlord in writing?
-                    """,
-                    .history,
-                    .awaitingClarificationAnswers
-                )
-            }
-
             return (
                 """
-                I’m sorry you’re dealing with that, and you may have a basis for compensation depending on the facts.
+                \(plan.summaryLead ?? "Got it. Let’s build this step by step.")
 
-                To start, when did this begin, and who is involved?
+                \(questionText.isEmpty ? "Start with the moment it began. What happened first?" : questionText)
                 """,
                 .history,
                 .awaitingClarificationAnswers
             )
 
         case .awaitingClarificationAnswers:
-            if isHousingIssue {
-                return (
-                    """
-                    Thank you. That helps me understand the situation better. In many states, a landlord has to keep essential plumbing working.
-
-                    What city and state is the rental in, and are you on a lease?
-                    """,
-                    .history,
-                    .awaitingMoreClarificationAnswers
-                )
-            }
-
             return (
                 """
-                Thank you. That helps me understand the situation better.
+                \(plan.summaryLead ?? "That helps. I’m organizing this as we go.")
 
-                Do you have any messages, photos, or documents, and has this caused you any money loss or other harm?
+                \(questionText.isEmpty ? "Before strategy, I still need the strongest documents and the timeline anchors." : questionText)
                 """,
                 .history,
                 .awaitingMoreClarificationAnswers
             )
 
         case .awaitingMoreClarificationAnswers:
-            if isHousingIssue {
-                return (
-                    """
-                    I understand. Thank you for walking me through that.
-
-                    Is there another working bathroom in the home, and has this caused any hotel costs, health issues, or other out-of-pocket losses?
-                    """,
-                    .history,
-                    .awaitingFinalClarificationAnswers
-                )
-            }
-
             return (
                 """
-                I understand. Thank you for walking me through that.
+                \(plan.summaryLead ?? "I see the shape of it now.")
 
-                Is there a deadline, hearing, notice, or response I should know about before I map out next steps?
+                \(questionText.isEmpty ? "Is there a deadline, hearing, filing date, or response date I should anchor the timeline to?" : questionText)
                 """,
                 .history,
                 .awaitingFinalClarificationAnswers
             )
 
         case .awaitingFinalClarificationAnswers:
-            if isHousingIssue {
-                return (
-                    """
-                    That gives me a much clearer picture.
-
-                    Would you like me to put together a short strategy for you?
-                    """,
-                    .history,
-                    .awaitingStrategyConsent
-                )
-            }
-
             return (
                 """
                 That gives me a much clearer picture.
@@ -382,6 +332,38 @@ final class ConversationManager: ObservableObject {
 
     private func pauseBeforeReply(_ text: String) async {
         try? await Task.sleep(nanoseconds: responseDelayNanoseconds(for: text))
+    }
+
+    private func syncStructuredPayload(_ payload: CaseUpdatePayload, into caseId: UUID) {
+        guard let tree = caseTreeViewModel else { return }
+
+        if !payload.evidenceItems.isEmpty {
+            let text = payload.evidenceItems.map { item in
+                "• [\((item.status.rawValue).replacingOccurrences(of: "_", with: " "))] \(item.title)"
+            }.joined(separator: "\n")
+            _ = tree.upsertTextFile(caseId: caseId, subfolder: .evidence, name: "Evidence Registry", content: text)
+        }
+
+        if !payload.documentRequirements.isEmpty {
+            let text = payload.documentRequirements.map { item in
+                "• \(item.title) [\(item.urgency.rawValue)] [\(item.stage.rawValue)]"
+            }.joined(separator: "\n")
+            _ = tree.upsertTextFile(caseId: caseId, subfolder: .documents, name: "Document Checklist", content: text)
+        }
+
+        if !payload.strategyNotes.isEmpty {
+            let text = payload.strategyNotes.map { note in
+                "• \(note.category.rawValue): \(note.text)"
+            }.joined(separator: "\n")
+            _ = tree.upsertTextFile(caseId: caseId, subfolder: .history, name: "Strategy Notes", content: text)
+        }
+
+        if !payload.filingInstructions.isEmpty {
+            let text = payload.filingInstructions.sorted { $0.stepOrder < $1.stepOrder }.map { item in
+                "\(item.stepOrder). \(item.title)\n\(item.details)"
+            }.joined(separator: "\n\n")
+            _ = tree.upsertTextFile(caseId: caseId, subfolder: .documents, name: "Filing Instructions", content: text)
+        }
     }
 
     private func normalizedCaseTitle(_ title: String) -> String {
@@ -532,18 +514,15 @@ final class ConversationManager: ObservableObject {
     private func maybeOfferCaseUpdateSuggestion(for userMessage: Message, caseId: UUID) {
         guard pendingCaseUpdates[caseId] == nil else { return }
         guard lastSuggestedUpdateMessageIds[caseId] != userMessage.id else { return }
-
-        let lower = userMessage.content.lowercased()
         let title = caseTreeViewModel?.cases.first(where: { $0.id == caseId })?.title ?? "this case"
-        let hasAttachments = !userMessage.attachmentNames.isEmpty
-        let looksLikeEvidence = hasAttachments || ["photo", "image", "notice", "lease", "text", "email", "invoice", "receipt", "screenshot", "video", "recording"].contains { lower.contains($0) }
-        let looksLikeTimeline = [
-            "date", "deadline", "hearing", "served", "serve", "service", "filed", "filing", "court",
-            "response due", "waiting period", "gathering", "prep", "trial", "mediation", "motion",
-            "discovery", "subpoena", "summons", "estimate", "estimated", "by when", "due date"
-        ].contains { lower.contains($0) }
+        let payload = legalSignalExtractor.extract(
+            from: userMessage.content,
+            attachmentNames: userMessage.attachmentNames,
+            attachmentContents: userMessage.attachmentContents,
+            messageId: userMessage.id
+        )
 
-        if looksLikeEvidence {
+        if payload.shouldOfferEvidenceUpdate {
             pendingCaseUpdates[caseId] = .addToEvidence(
                 caseId: caseId,
                 sourceText: userMessage.content,
@@ -556,7 +535,7 @@ final class ConversationManager: ObservableObject {
             return
         }
 
-        if looksLikeTimeline {
+        if payload.shouldOfferTimelineUpdate {
             pendingCaseUpdates[caseId] = .updateTimeline(caseId: caseId, sourceText: userMessage.content)
             pendingCaseUpdateCaseId = caseId
             lastSuggestedUpdateMessageIds[caseId] = userMessage.id
@@ -597,6 +576,16 @@ final class ConversationManager: ObservableObject {
         )
         addMessage(message)
         print("🔥 submitUserContent user message count:", messages.count)
+
+        if let id = caseId {
+            let payload = legalSignalExtractor.extract(
+                from: message.content,
+                attachmentNames: message.attachmentNames,
+                attachmentContents: message.attachmentContents,
+                messageId: message.id
+            )
+            syncStructuredPayload(payload, into: id)
+        }
 
         // First user submission for this case: create initial CaseMemory, update it with the new info, mark progress, and enqueue reasoning.
         if let id = caseId, existingUserMessageCount == 0 {
