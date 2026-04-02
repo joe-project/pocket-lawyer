@@ -283,13 +283,10 @@ struct SidebarView: View {
     private let primarySectionOrder = [
         "General Law Questions",
         "Jones vs. Smith (Example Case)",
-        "Trust Law",
-        "Civil Law",
-        "Real Estate Law"
+        "Trust Law"
     ]
     private let secondarySectionOrder = [
-        "Family Trust Documents",
-        "Dufff Vs. Banks"
+        "Family Trust Documents"
     ]
 
     private var casesAndResearchFolders: [CaseFolder] {

@@ -37,10 +37,7 @@ final class CaseTreeViewModel: ObservableObject {
             CaseFolder(title: "General Law Questions", category: .inProgress),
             CaseFolder(title: "Jones vs. Smith (Example Case)", category: .inProgress),
             CaseFolder(title: "Trust Law", category: .inProgress),
-            CaseFolder(title: "Civil Law", category: .inProgress),
-            CaseFolder(title: "Real Estate Law", category: .inProgress),
-            CaseFolder(title: "Family Trust Documents", category: .mockCases),
-            CaseFolder(title: "Dufff Vs. Banks", category: .mockCases)
+            CaseFolder(title: "Family Trust Documents", category: .mockCases)
         ]
         selectedCase = cases.first(where: { $0.title == "General Law Questions" }) ?? cases.first
     }
@@ -64,7 +61,10 @@ final class CaseTreeViewModel: ObservableObject {
             [
                 "Smith vs. Johnson",
                 "Marriage & Family",
-                "Credit"
+                "Credit",
+                "Civil Law",
+                "Real Estate Law",
+                "Dufff Vs. Banks"
             ].contains(folder.title)
         }
 
@@ -72,10 +72,7 @@ final class CaseTreeViewModel: ObservableObject {
             ("General Law Questions", .inProgress),
             ("Jones vs. Smith (Example Case)", .inProgress),
             ("Trust Law", .inProgress),
-            ("Civil Law", .inProgress),
-            ("Real Estate Law", .inProgress),
-            ("Family Trust Documents", .mockCases),
-            ("Dufff Vs. Banks", .mockCases)
+            ("Family Trust Documents", .mockCases)
         ]
 
         for (title, category) in defaults where !updated.contains(where: { $0.title == title }) {
@@ -84,9 +81,9 @@ final class CaseTreeViewModel: ObservableObject {
 
         for index in updated.indices {
             switch updated[index].title {
-            case "General Law Questions", "Jones vs. Smith (Example Case)", "Trust Law", "Civil Law", "Real Estate Law":
+            case "General Law Questions", "Jones vs. Smith (Example Case)", "Trust Law":
                 updated[index].category = .inProgress
-            case "Family Trust Documents", "Dufff Vs. Banks":
+            case "Family Trust Documents":
                 updated[index].category = .mockCases
             default:
                 break
