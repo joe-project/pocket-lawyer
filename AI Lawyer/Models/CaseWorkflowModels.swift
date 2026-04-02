@@ -48,7 +48,7 @@ enum LegalFactKind: String, Codable, CaseIterable {
     case venue
 }
 
-struct EvidenceItem: Identifiable, Codable, Hashable {
+struct WorkflowEvidenceItem: Identifiable, Codable, Hashable {
     let id: UUID
     var title: String
     var category: String
@@ -176,13 +176,13 @@ struct ExtractedLegalFact: Identifiable, Codable, Hashable {
     }
 }
 
-struct CaseUpdatePayload: Codable, Hashable {
+struct CaseUpdatePayload: Codable {
     var caseType: String?
     var jurisdictionHint: String?
     var summary: String?
     var extractedFacts: [ExtractedLegalFact]
     var timelineEvents: [CaseTimelineEvent]
-    var evidenceItems: [EvidenceItem]
+    var evidenceItems: [WorkflowEvidenceItem]
     var documentRequirements: [DocumentRequirement]
     var filingInstructions: [FilingInstruction]
     var strategyNotes: [StrategyNote]
@@ -199,7 +199,7 @@ struct CaseUpdatePayload: Codable, Hashable {
         summary: String? = nil,
         extractedFacts: [ExtractedLegalFact] = [],
         timelineEvents: [CaseTimelineEvent] = [],
-        evidenceItems: [EvidenceItem] = [],
+        evidenceItems: [WorkflowEvidenceItem] = [],
         documentRequirements: [DocumentRequirement] = [],
         filingInstructions: [FilingInstruction] = [],
         strategyNotes: [StrategyNote] = [],

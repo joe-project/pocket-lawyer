@@ -54,8 +54,8 @@ struct LegalSignalExtractor {
         return states.first(where: { text.localizedCaseInsensitiveContains($0) })
     }
 
-    private func detectEvidence(in lower: String, attachmentNames: [String], messageId: UUID?) -> [EvidenceItem] {
-        var items: [EvidenceItem] = []
+    private func detectEvidence(in lower: String, attachmentNames: [String], messageId: UUID?) -> [WorkflowEvidenceItem] {
+        var items: [WorkflowEvidenceItem] = []
         let mapping: [(String, String)] = [
             ("photo", "Photos"),
             ("image", "Photos"),
@@ -71,11 +71,11 @@ struct LegalSignalExtractor {
         ]
 
         for (keyword, category) in mapping where lower.contains(keyword) {
-            items.append(EvidenceItem(title: category, category: category, status: .need, linkedMessageId: messageId, isTentative: true))
+            items.append(WorkflowEvidenceItem(title: category, category: category, status: .need, linkedMessageId: messageId, isTentative: true))
         }
 
         for name in attachmentNames {
-            items.append(EvidenceItem(title: name, category: "Uploaded", status: .uploaded, linkedMessageId: messageId))
+            items.append(WorkflowEvidenceItem(title: name, category: "Uploaded", status: .uploaded, linkedMessageId: messageId))
         }
 
         return Array(Set(items))
@@ -164,7 +164,7 @@ struct LegalSignalExtractor {
         caseType: String?,
         jurisdiction: String?,
         requestedActions: [String],
-        evidenceItems: [EvidenceItem],
+        evidenceItems: [WorkflowEvidenceItem],
         timelineEvents: [CaseTimelineEvent]
     ) -> [ExtractedLegalFact] {
         var facts: [ExtractedLegalFact] = []
