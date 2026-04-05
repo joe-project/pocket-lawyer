@@ -1,6 +1,9 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import UniformTypeIdentifiers
+import QuickLook
+import Photos
 
 /// Display order and display name for evidence categories in the Evidence view.
 private let evidenceCategoryOrder: [(key: String, displayName: String)] = [
@@ -17,11 +20,20 @@ struct DocumentListView: View {
     @EnvironmentObject var subscriptionViewModel: SubscriptionViewModel
     @State private var showAddDocument = false
     @State private var showImagePicker = false
+    @State private var showFormImporter = false
+    @State private var showFormImagePicker = false
     @State private var pickedImage: UIImage?
     @State private var newDocName = ""
     @State private var newDocContent = ""
     @State private var upgradePromptToShow: UpgradePrompt?
+    @State private var importErrorMessage: String?
+    @State private var isProcessingImportedDocument = false
+    @State private var autofillSession: DocumentAutofillReviewSession?
+    @State private var previewItem: PreviewFileItem?
     private let evidenceCategorizationEngine = EvidenceCategorizationEngine()
+    private let documentProcessingService = DocumentProcessingService()
+    private let documentAutofillService = DocumentAutofillService()
+    private let completedDocumentWriter = CompletedDocumentWriter()
 
     // File actions
     private struct FileActionTarget: Equatable {
@@ -123,8 +135,69 @@ struct DocumentListView: View {
                 _ = caseTreeViewModel.addImage(caseId: caseId, subfolder: caseTreeViewModel.selectedSubfolder, name: "Image \(Date().formatted(date: .abbreviated, time: .shortened))", imageData: data)
             }
         }
+        .sheet(isPresented: $showFormImagePicker) {
+            ImagePicker(image: $pickedImage) { img in
+                Task {
+                    await importScannedImage(img)
+                }
+            }
+        }
+        .fileImporter(
+            isPresented: $showFormImporter,
+            allowedContentTypes: [.pdf, .image],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                Task {
+                    await importDocument(from: url)
+                }
+            case .failure(let error):
+                importErrorMessage = error.localizedDescription
+            }
+        }
         .sheet(item: $upgradePromptToShow) { prompt in
             UpgradePromptSheet(prompt: prompt) { upgradePromptToShow = nil }
+        }
+        .sheet(item: $autofillSession) { session in
+            DocumentAutofillReviewSheet(
+                session: Binding(
+                    get: { autofillSession ?? session },
+                    set: { autofillSession = $0 }
+                ),
+                onCancel: {
+                    autofillSession = nil
+                },
+                onSave: {
+                    Task {
+                        await saveCompletedDocument()
+                    }
+                }
+            )
+        }
+        .sheet(item: $previewItem) { item in
+            QuickLookPreview(url: item.url)
+        }
+        .alert("Document import", isPresented: Binding(
+            get: { importErrorMessage != nil },
+            set: { if !$0 { importErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { importErrorMessage = nil }
+        } message: {
+            Text(importErrorMessage ?? "")
+        }
+        .overlay {
+            if isProcessingImportedDocument {
+                ZStack {
+                    Color.black.opacity(0.18).ignoresSafeArea()
+                    ProgressView("Processing document…")
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
         }
     }
 
@@ -146,6 +219,16 @@ struct DocumentListView: View {
                     showImagePicker = true
                 } label: {
                     Label("Add image", systemImage: "photo.badge.plus")
+                }
+                Button {
+                    showFormImporter = true
+                } label: {
+                    Label("Import form or PDF", systemImage: "doc.viewfinder")
+                }
+                Button {
+                    showFormImagePicker = true
+                } label: {
+                    Label("Import scanned image", systemImage: "text.viewfinder")
                 }
             } label: {
                 AccentOutlinePlusIcon()
@@ -345,6 +428,20 @@ struct DocumentListView: View {
             }
 
             Button {
+                previewFile(file)
+            } label: {
+                Label("Preview", systemImage: "eye")
+            }
+
+            if file.type == .pdf {
+                Button {
+                    savePDFPreviewToPhotos(file)
+                } label: {
+                    Label("Save Preview to Photos", systemImage: "photo")
+                }
+            }
+
+            Button {
                 exportFileOrContent(file)
             } label: {
                 Label("Share", systemImage: "square.and.arrow.up")
@@ -434,6 +531,24 @@ struct DocumentListView: View {
             }
         }
         root.present(av, animated: true)
+    }
+
+    private func previewFile(_ file: CaseFile) {
+        if caseTreeViewModel.fileExistsOnDisk(file) {
+            previewItem = PreviewFileItem(url: caseTreeViewModel.fileURL(for: file))
+        } else if let url = makeTextPDFURL(title: file.name, text: file.content ?? "") {
+            previewItem = PreviewFileItem(url: url)
+        }
+    }
+
+    private func savePDFPreviewToPhotos(_ file: CaseFile) {
+        guard caseTreeViewModel.fileExistsOnDisk(file) else { return }
+        let url = caseTreeViewModel.fileURL(for: file)
+        guard let image = completedDocumentWriter.previewImage(for: url) else {
+            importErrorMessage = "A preview image could not be generated for this PDF."
+            return
+        }
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
     }
 
     private func exportPDF(for file: CaseFile) {
@@ -548,7 +663,220 @@ struct DocumentListView: View {
         default: return "doc.fill"
         }
     }
+
+    private func importDocument(from url: URL) async {
+        guard let caseFolder = caseTreeViewModel.selectedCase else {
+            importErrorMessage = "Select a case or research folder before importing a document."
+            return
+        }
+
+        isProcessingImportedDocument = true
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer {
+            if accessed { url.stopAccessingSecurityScopedResource() }
+            isProcessingImportedDocument = false
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            try await prepareAutofillSession(
+                caseFolder: caseFolder,
+                fileName: url.lastPathComponent,
+                originalData: data
+            )
+        } catch {
+            importErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func importScannedImage(_ image: UIImage) async {
+        guard let caseFolder = caseTreeViewModel.selectedCase else {
+            importErrorMessage = "Select a case or research folder before importing a scan."
+            return
+        }
+        guard let data = image.jpegData(compressionQuality: 0.92) else {
+            importErrorMessage = "The scanned image could not be prepared."
+            return
+        }
+
+        isProcessingImportedDocument = true
+        defer { isProcessingImportedDocument = false }
+
+        do {
+            let name = "Scanned Form \(Date().formatted(date: .abbreviated, time: .shortened)).jpg"
+            try await prepareAutofillSession(caseFolder: caseFolder, fileName: name, originalData: data)
+        } catch {
+            importErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func prepareAutofillSession(caseFolder: CaseFolder, fileName: String, originalData: Data) async throws {
+        let processed = try await documentProcessingService.processDocument(data: originalData, fileName: fileName)
+        let state = workspace.state(for: caseFolder.id)
+        let draft = documentAutofillService.prepareDraft(for: processed, caseState: state, caseFolder: caseFolder)
+        autofillSession = DocumentAutofillReviewSession(
+            caseId: caseFolder.id,
+            originalData: originalData,
+            processed: processed,
+            draft: draft
+        )
+    }
+
+    private func saveCompletedDocument() async {
+        guard let session = autofillSession else { return }
+        isProcessingImportedDocument = true
+        defer { isProcessingImportedDocument = false }
+
+        do {
+            let originalName = session.processed.originalFileName
+
+            _ = caseTreeViewModel.addBinaryFile(
+                caseId: session.caseId,
+                subfolder: .documents,
+                name: originalName,
+                type: session.processed.originalFileType,
+                data: session.originalData,
+                extractedText: session.processed.extractedText,
+                responseTag: .note
+            )
+
+            let completedURL = try completedDocumentWriter.makeCompletedPDF(
+                originalData: session.originalData,
+                processed: session.processed,
+                draft: session.draft
+            )
+            let completedData = try Data(contentsOf: completedURL)
+            let completedName = completedDocumentWriter.completedFileName(for: originalName)
+
+            caseTreeViewModel.setSubfolderHidden(caseId: session.caseId, subfolder: .filedDocuments, hidden: false)
+            guard let completedFile = caseTreeViewModel.addBinaryFile(
+                caseId: session.caseId,
+                subfolder: .filedDocuments,
+                name: completedName,
+                type: .pdf,
+                data: completedData,
+                extractedText: completedDocumentWriter.summaryText(for: session.draft),
+                responseTag: .draft
+            ) else {
+                throw NSError(domain: "DocumentListView", code: 1, userInfo: [NSLocalizedDescriptionKey: "The completed document could not be saved into the case."])
+            }
+
+            caseTreeViewModel.addTimelineEvent(
+                TimelineEvent(
+                    kind: .response,
+                    title: "Completed form saved",
+                    summary: completedName,
+                    createdAt: Date(),
+                    documentId: completedFile.id,
+                    subfolder: .filedDocuments
+                ),
+                caseId: session.caseId
+            )
+
+            caseTreeViewModel.selectedSubfolder = .filedDocuments
+            caseTreeViewModel.selectedFileId = completedFile.id
+            previewItem = PreviewFileItem(url: caseTreeViewModel.fileURL(for: completedFile))
+            autofillSession = nil
+        } catch {
+            importErrorMessage = error.localizedDescription
+        }
+    }
 }
+
+private struct PreviewFileItem: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+private struct DocumentAutofillReviewSession: Identifiable {
+    let id = UUID()
+    let caseId: UUID
+    let originalData: Data
+    let processed: ProcessedDocument
+    var draft: DocumentAutofillDraft
+}
+
+private struct DocumentAutofillReviewSheet: View {
+    @Binding var session: DocumentAutofillReviewSession
+    let onCancel: () -> Void
+    let onSave: () -> Void
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Form") {
+                    Text(session.processed.originalFileName)
+                    Text(session.draft.summary)
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+
+                Section("Fields") {
+                    ForEach($session.draft.fields) { $field in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(field.label)
+                                Spacer()
+                                Text(field.confidence.rawValue)
+                                    .font(.caption)
+                                    .foregroundColor(field.confidence == .missing ? .red : .secondary)
+                            }
+                            TextField("Needs review", text: $field.value, axis: .vertical)
+                                .lineLimit(1...3)
+                            Text(field.source)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Review Autofill")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: onSave)
+                }
+            }
+        }
+    }
+}
+
+private struct QuickLookPreview: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> QLPreviewController {
+        let controller = QLPreviewController()
+        controller.dataSource = context.coordinator
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: QLPreviewController, context: Context) {
+        context.coordinator.url = url
+        uiViewController.reloadData()
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(url: url)
+    }
+
+    final class Coordinator: NSObject, QLPreviewControllerDataSource {
+        var url: URL
+
+        init(url: URL) {
+            self.url = url
+        }
+
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+            url as NSURL
+        }
+    }
+}
+
 
 // MARK: - Image picker (PhotosUI)
 struct ImagePicker: UIViewControllerRepresentable {

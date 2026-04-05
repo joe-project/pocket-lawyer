@@ -357,6 +357,57 @@ final class CaseTreeViewModel: ObservableObject {
         save()
     }
 
+    /// Add a binary file (PDF/image/other) while still keeping extracted text available in metadata when useful.
+    @discardableResult
+    func addBinaryFile(
+        caseId: UUID,
+        subfolder: CaseSubfolder,
+        name: String,
+        type: CaseFileType,
+        data: Data,
+        extractedText: String? = nil,
+        responseTag: ResponseTag? = nil
+    ) -> CaseFile? {
+        guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return nil }
+
+        let fileId = UUID()
+        storage.writeBinaryFile(caseId: caseId, subfolder: subfolder, fileId: fileId, type: type, data: data)
+
+        let subfolderDir = subfolder.rawValue.replacingOccurrences(of: " ", with: "_")
+        let ext: String
+        switch type {
+        case .pdf: ext = "pdf"
+        case .image: ext = "jpg"
+        case .audio: ext = "m4a"
+        case .docx: ext = "docx"
+        case .note: ext = "txt"
+        case .other: ext = "bin"
+        }
+
+        let file = CaseFile(
+            id: fileId,
+            name: name,
+            type: type,
+            relativePath: "CaseFiles/\(caseId.uuidString)/\(subfolderDir)/\(fileId.uuidString).\(ext)",
+            createdAt: Date(),
+            caseId: caseId,
+            recordingSubfolder: nil,
+            content: extractedText?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true ? nil : extractedText,
+            durationSeconds: nil,
+            responseTag: responseTag,
+            versionGroupId: nil,
+            versionNumber: nil
+        )
+
+        var folder = cases[idx]
+        var files = folder.subfolders[subfolder] ?? []
+        files.append(file)
+        folder.subfolders[subfolder] = files
+        cases[idx] = folder
+        save()
+        return file
+    }
+
     /// Update file name or content (stored on device).
     func updateFile(caseId: UUID, subfolder: CaseSubfolder, fileId: UUID, newName: String?, newContent: String?) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }),

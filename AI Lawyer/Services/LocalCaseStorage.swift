@@ -86,6 +86,12 @@ final class LocalCaseStorage {
         try? data.write(to: url)
     }
 
+    /// Write arbitrary binary data to disk, preserving the file type extension.
+    func writeBinaryFile(caseId: UUID, subfolder: CaseSubfolder, fileId: UUID, type: CaseFileType, data: Data) {
+        let url = fileURL(caseId: caseId, subfolder: subfolder, fileId: fileId, type: type)
+        try? data.write(to: url, options: .atomic)
+    }
+
     /// Read text content from disk (for files that store content on disk instead of in-memory).
     func readFileContent(at relativePath: String) -> String? {
         let url = documentsURL.appendingPathComponent(relativePath)
