@@ -160,6 +160,13 @@ final class CaseTreeViewModel: ObservableObject {
         return id
     }
 
+    /// Shows every built-in subfolder in the sidebar (Evidence, Timeline, Responses, History, etc.).
+    func revealStandardSubfolders(caseId: UUID) {
+        guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        cases[idx].hiddenSubfolders.removeAll()
+        save()
+    }
+
     @discardableResult
     func upsertTextFile(caseId: UUID, subfolder: CaseSubfolder, name: String, content: String) -> UUID? {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return nil }

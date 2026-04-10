@@ -52,6 +52,21 @@ final class ConversationManager: ObservableObject {
     private var lastSuggestedUpdateMessageIds: [UUID: UUID] = [:]
     private var lastStrategyOfferUserCount: [UUID: Int] = [:]
 
+    /// Last assistant-visible text per case (for “save that” / “add this to strategy” without re-sending).
+    private var lastAssistantContentByCase: [UUID: String] = [:]
+
+    private struct NLPendingDisambiguation {
+        let listenerCaseId: UUID
+        let options: [(id: UUID, title: String)]
+        let sourceText: String
+        let attachmentNames: [String]
+        let attachmentContents: [String]
+        let subfolder: CaseSubfolder
+        let intentKind: ChatCaseIntentKind
+    }
+
+    private var pendingNLDisambiguation: NLPendingDisambiguation?
+
     /// When set, case analysis is stored here and the dashboard can refresh from it.
     weak var caseManager: CaseManager?
     /// When set, used to build full case context (timeline, evidence, recordings) for AI reasoning.
@@ -115,6 +130,9 @@ final class ConversationManager: ObservableObject {
             print("🔥 MESSAGE ADDED [\(message.role)]")
         }
         print("MESSAGE CASE ID:", message.caseId?.uuidString ?? "nil")
+        if message.role == "assistant", let cid = message.caseId {
+            lastAssistantContentByCase[cid] = message.content
+        }
         messageBatcher.addMessage(message)
         if messageBatcher.shouldProcessBatch() {
             let batch = messageBatcher.flushBatch()
@@ -137,6 +155,9 @@ final class ConversationManager: ObservableObject {
             timestamp: Date()
         )
         messages.append(localMessage)
+        if let cid = caseId {
+            lastAssistantContentByCase[cid] = content
+        }
     }
 
     func clearPendingFolderSuggestion() {
@@ -185,6 +206,332 @@ final class ConversationManager: ObservableObject {
             addLocalAssistantMessage(confirmation, caseId: caseId)
             return AppliedCaseUpdate(caseId: caseId, subfolder: .timeline, fileId: applied, confirmation: confirmation)
         }
+    }
+
+    /// Chat-driven case actions: create case, route adds to evidence/timeline/strategy/etc., fuzzy match by name.
+    func handleNaturalLanguageCaseIntent(
+        text: String,
+        currentCaseId: UUID,
+        attachmentNames: [String],
+        attachmentContents: [String]
+    ) -> AppliedCaseUpdate? {
+        guard let tree = caseTreeViewModel else { return nil }
+
+        if let pending = pendingNLDisambiguation, pending.listenerCaseId == currentCaseId {
+            if let idx = ChatCaseIntentRouter.resolveDisambiguationIndex(from: text, optionCount: pending.options.count) {
+                pendingNLDisambiguation = nil
+                let target = pending.options[idx].id
+                return executeNLAdd(
+                    caseId: target,
+                    subfolder: pending.subfolder,
+                    intentKind: pending.intentKind,
+                    sourceText: pending.sourceText,
+                    attachmentNames: pending.attachmentNames,
+                    attachmentContents: pending.attachmentContents
+                )
+            }
+            if normalizedDecision(text) == false {
+                pendingNLDisambiguation = nil
+                let msg = "Okay—tell me which case name to use, or say “create case …” to start a new one."
+                addLocalAssistantMessage(msg, caseId: currentCaseId)
+                return AppliedCaseUpdate(caseId: currentCaseId, subfolder: .history, fileId: nil, confirmation: msg)
+            }
+        }
+
+        guard let parsed = ChatCaseIntentRouter.parse(
+            rawText: text,
+            hasAttachments: !attachmentNames.isEmpty
+        ) else { return nil }
+
+        switch parsed.kind {
+        case .createCase:
+            return handleNLCreateCase(
+                text: text,
+                currentCaseId: currentCaseId,
+                parsed: parsed,
+                attachmentNames: attachmentNames,
+                attachmentContents: attachmentContents
+            )
+        case .saveLastAssistantReply:
+            let body = lastAssistantContentByCase[currentCaseId] ?? ""
+            guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                let msg = "I don’t have a recent assistant reply to save yet. After I respond, you can say “save that to strategy” (or timeline/notes)."
+                addLocalAssistantMessage(msg, caseId: currentCaseId)
+                return AppliedCaseUpdate(caseId: currentCaseId, subfolder: .history, fileId: nil, confirmation: msg)
+            }
+            return executeNLAdd(
+                caseId: currentCaseId,
+                subfolder: parsed.targetSubfolder,
+                intentKind: parsed.kind,
+                sourceText: body,
+                attachmentNames: [],
+                attachmentContents: []
+            )
+        case .createTask:
+            fallthrough
+        case .addToCase, .addToEvidence, .addToTimeline, .addToStrategy, .addToNotes, .addToResearch, .addToDocuments:
+            return handleNLAddToResolvedCase(
+                text: text,
+                currentCaseId: currentCaseId,
+                parsed: parsed,
+                attachmentNames: attachmentNames,
+                attachmentContents: attachmentContents
+            )
+        case .askForConfirmation, .normalChatResponse:
+            return nil
+        }
+    }
+
+    private func handleNLCreateCase(
+        text: String,
+        currentCaseId: UUID,
+        parsed: ChatCaseIntentParseResult,
+        attachmentNames: [String],
+        attachmentContents: [String]
+    ) -> AppliedCaseUpdate? {
+        guard let tree = caseTreeViewModel else { return nil }
+        let rawTitle = parsed.titleOrQuery?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let title = rawTitle.isEmpty ? suggestedFolderTitle(for: currentCaseId) : rawTitle
+
+        if let dup = tree.cases.first(where: { $0.title.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(title) == .orderedSame }) {
+            let msg = "You already have a case named “\(dup.title)”. Open it in the sidebar, or pick a different name."
+            addLocalAssistantMessage(msg, caseId: currentCaseId)
+            return AppliedCaseUpdate(caseId: currentCaseId, subfolder: .history, fileId: nil, confirmation: msg)
+        }
+
+        let newId = tree.createNewCase(title: title, category: .inProgress)
+        tree.revealStandardSubfolders(caseId: newId)
+
+        let userMsg = Message(
+            id: UUID(),
+            caseId: newId,
+            fileId: nil,
+            role: "user",
+            content: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !attachmentNames.isEmpty ? "(attachment)" : text,
+            timestamp: Date(),
+            attachmentNames: attachmentNames,
+            attachmentContents: attachmentContents
+        )
+        addMessage(userMsg)
+
+        if !attachmentNames.isEmpty {
+            _ = applyEvidenceUpdate(
+                caseId: newId,
+                sourceText: text,
+                attachmentNames: attachmentNames,
+                attachmentContents: attachmentContents
+            )
+        }
+
+        let msg = "Done. I created “\(title)” and set up its sections\(attachmentNames.isEmpty ? "" : ", and added your attachment(s) to Evidence"). You’re now in that case."
+        addLocalAssistantMessage(msg, caseId: newId)
+        return AppliedCaseUpdate(caseId: newId, subfolder: .evidence, fileId: nil, confirmation: msg)
+    }
+
+    private func handleNLAddToResolvedCase(
+        text: String,
+        currentCaseId: UUID,
+        parsed: ChatCaseIntentParseResult,
+        attachmentNames: [String],
+        attachmentContents: [String]
+    ) -> AppliedCaseUpdate? {
+        guard let tree = caseTreeViewModel else { return nil }
+        let query = parsed.titleOrQuery?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let targetId: UUID?
+
+        if query.isEmpty {
+            targetId = currentCaseId
+        } else {
+            let ranked = ChatCaseIntentRouter.rankedCaseMatches(query: query, cases: tree.cases)
+            if ranked.isEmpty {
+                let msg = "I couldn’t find a case matching “\(query)”. Say create case \(query) to start one, or use the exact sidebar title."
+                addLocalAssistantMessage(msg, caseId: currentCaseId)
+                return AppliedCaseUpdate(caseId: currentCaseId, subfolder: .history, fileId: nil, confirmation: msg)
+            }
+            let best = ranked[0]
+            let second = ranked.count > 1 ? ranked[1] : nil
+            if let s = second, best.score < 0.9, (best.score - s.score) < 0.18 {
+                let top = Array(ranked.prefix(3))
+                pendingNLDisambiguation = NLPendingDisambiguation(
+                    listenerCaseId: currentCaseId,
+                    options: top.map { ($0.folder.id, $0.folder.title) },
+                    sourceText: nlSourceText(text: text, currentCaseId: currentCaseId, parsed: parsed, attachmentNames: attachmentNames),
+                    attachmentNames: attachmentNames,
+                    attachmentContents: attachmentContents,
+                    subfolder: parsed.targetSubfolder,
+                    intentKind: parsed.kind
+                )
+                let list = top.enumerated().map { "\($0.offset + 1). \($0.element.folder.title)" }.joined(separator: "\n")
+                let msg = "Which case did you mean?\n\(list)\n\nReply with a number (1, 2, …), or say no to cancel."
+                addLocalAssistantMessage(msg, caseId: currentCaseId)
+                return AppliedCaseUpdate(caseId: currentCaseId, subfolder: .history, fileId: nil, confirmation: msg)
+            }
+            targetId = best.folder.id
+        }
+
+        guard let caseId = targetId else { return nil }
+        let source = nlSourceText(text: text, currentCaseId: currentCaseId, parsed: parsed, attachmentNames: attachmentNames)
+        return executeNLAdd(
+            caseId: caseId,
+            subfolder: parsed.targetSubfolder,
+            intentKind: parsed.kind,
+            sourceText: source,
+            attachmentNames: attachmentNames,
+            attachmentContents: attachmentContents
+        )
+    }
+
+    private func nlSourceText(
+        text: String,
+        currentCaseId: UUID,
+        parsed: ChatCaseIntentParseResult,
+        attachmentNames: [String]
+    ) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty, !parsed.refersToAttachmentOrDemonstrative || attachmentNames.isEmpty {
+            return trimmed
+        }
+        if parsed.refersToAttachmentOrDemonstrative && attachmentNames.isEmpty {
+            return reusableSourceText(for: currentCaseId, fallback: text)
+        }
+        return trimmed.isEmpty ? reusableSourceText(for: currentCaseId, fallback: text) : trimmed
+    }
+
+    private func executeNLAdd(
+        caseId: UUID,
+        subfolder: CaseSubfolder,
+        intentKind: ChatCaseIntentKind,
+        sourceText: String,
+        attachmentNames: [String],
+        attachmentContents: [String]
+    ) -> AppliedCaseUpdate? {
+        guard let tree = caseTreeViewModel else { return nil }
+        let title = tree.cases.first(where: { $0.id == caseId })?.title ?? "this case"
+        var fileId: UUID?
+        var confirmation: String
+
+        switch intentKind {
+        case .createTask:
+            let stripped = textAfterTaskVerb(sourceText)
+            let taskTitle = String(stripped.prefix(120)).trimmingCharacters(in: .whitespacesAndNewlines)
+            let head = taskTitle.isEmpty ? "Task from chat" : taskTitle
+            tree.addTimelineEvent(
+                TimelineEvent(
+                    kind: .task,
+                    title: head,
+                    summary: sourceText.prefix(500).description,
+                    createdAt: Date(),
+                    documentId: nil,
+                    subfolder: .timeline
+                ),
+                caseId: caseId
+            )
+            confirmation = "Added a task to \(title)."
+
+        case .addToTimeline:
+            fileId = applyTimelineUpdate(caseId: caseId, sourceText: sourceText)
+            confirmation = "Added to the timeline for \(title)."
+
+        case .addToEvidence:
+            fileId = applyEvidenceUpdate(
+                caseId: caseId,
+                sourceText: sourceText,
+                attachmentNames: attachmentNames,
+                attachmentContents: attachmentContents
+            )
+            confirmation = "Added to \(title) evidence."
+
+        case .addToStrategy:
+            let body = compositeBody(sourceText: sourceText, attachmentNames: attachmentNames, attachmentContents: attachmentContents)
+            guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                confirmation = "Nothing to save—try adding a short note after your command."
+                addLocalAssistantMessage(confirmation, caseId: caseId)
+                return AppliedCaseUpdate(caseId: caseId, subfolder: .response, fileId: nil, confirmation: confirmation)
+            }
+            fileId = tree.addVersionedTextArtifact(
+                caseId: caseId,
+                subfolder: .response,
+                baseName: "Strategy Notes",
+                content: body,
+                responseTag: .strategy,
+                timelineTitle: "Strategy note saved",
+                timelineSummary: body.prefix(180).description
+            )
+            confirmation = "Saved a strategy note in \(title)."
+
+        case .addToResearch:
+            let body = compositeBody(sourceText: sourceText, attachmentNames: attachmentNames, attachmentContents: attachmentContents)
+            guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                confirmation = "Nothing to save."
+                addLocalAssistantMessage(confirmation, caseId: caseId)
+                return AppliedCaseUpdate(caseId: caseId, subfolder: .history, fileId: nil, confirmation: confirmation)
+            }
+            fileId = tree.addVersionedTextArtifact(
+                caseId: caseId,
+                subfolder: .history,
+                baseName: "Research Findings",
+                content: body,
+                responseTag: .note,
+                timelineTitle: "Research saved",
+                timelineSummary: body.prefix(180).description
+            )
+            confirmation = "Saved research notes in \(title)."
+
+        case .addToDocuments:
+            let body = compositeBody(sourceText: sourceText, attachmentNames: attachmentNames, attachmentContents: attachmentContents)
+            guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                confirmation = "Nothing to save."
+                addLocalAssistantMessage(confirmation, caseId: caseId)
+                return AppliedCaseUpdate(caseId: caseId, subfolder: .documents, fileId: nil, confirmation: confirmation)
+            }
+            fileId = tree.addVersionedTextArtifact(
+                caseId: caseId,
+                subfolder: .documents,
+                baseName: "From chat",
+                content: body,
+                responseTag: .draft,
+                timelineTitle: "Document note saved",
+                timelineSummary: body.prefix(180).description
+            )
+            confirmation = "Saved to Documents in \(title)."
+
+        case .addToNotes, .addToCase, .saveLastAssistantReply:
+            let body = compositeBody(sourceText: sourceText, attachmentNames: attachmentNames, attachmentContents: attachmentContents)
+            guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                confirmation = "Nothing to save."
+                addLocalAssistantMessage(confirmation, caseId: caseId)
+                return AppliedCaseUpdate(caseId: caseId, subfolder: .history, fileId: nil, confirmation: confirmation)
+            }
+            fileId = applyHistoryUpdate(caseId: caseId, sourceText: body)
+            confirmation = "Saved to notes/history for \(title)."
+
+        case .createCase, .askForConfirmation, .normalChatResponse:
+            return nil
+        }
+
+        addLocalAssistantMessage(confirmation, caseId: caseId)
+        return AppliedCaseUpdate(caseId: caseId, subfolder: subfolder, fileId: fileId, confirmation: confirmation)
+    }
+
+    private func compositeBody(sourceText: String, attachmentNames: [String], attachmentContents: [String]) -> String {
+        var parts: [String] = []
+        let t = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !t.isEmpty, t != "(attachment)" { parts.append(t) }
+        for (i, name) in attachmentNames.enumerated() {
+            let c = i < attachmentContents.count ? attachmentContents[i] : ""
+            if c.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                parts.append("[Attachment: \(name)]")
+            } else {
+                parts.append("[Attachment: \(name)]\n\(c)")
+            }
+        }
+        return parts.joined(separator: "\n\n")
+    }
+
+    private func textAfterTaskVerb(_ raw: String) -> String {
+        let p = #"^(?i)(add|save|put|create)\s+(a\s+)?(task|todo|to-?do|reminder)\s*:?\s*"#
+        guard let range = raw.range(of: p, options: .regularExpression) else { return raw }
+        return String(raw[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func handleDirectCaseCommandIfNeeded(

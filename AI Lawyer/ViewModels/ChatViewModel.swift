@@ -103,6 +103,23 @@ final class ChatViewModel: ObservableObject {
     func handleTranscript(_ transcript: String, caseId: UUID?) {
         Task {
             await MainActor.run { isSending = true }
+            defer { await MainActor.run { isSending = false } }
+
+            if let w = workspace, let cid = caseId ?? selectedCaseId {
+                if let applied = conversationManager.handleNaturalLanguageCaseIntent(
+                    text: transcript,
+                    currentCaseId: cid,
+                    attachmentNames: [],
+                    attachmentContents: []
+                ) {
+                    await MainActor.run {
+                        applyAppliedCaseUpdate(applied, workspace: w)
+                        if isIntakeActive { isIntakeActive = false }
+                    }
+                    return
+                }
+            }
+
             _ = await conversationManager.submitUserContent(
                 content: transcript,
                 caseId: caseId,
@@ -111,7 +128,6 @@ final class ChatViewModel: ObservableObject {
                 intakePaused: isIntakeActive
             )
             if isIntakeActive { await MainActor.run { isIntakeActive = false } }
-            await MainActor.run { isSending = false }
         }
     }
 
@@ -159,11 +175,24 @@ final class ChatViewModel: ObservableObject {
             return false
         }
 
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasAttachments = !attachmentNames.isEmpty
+
         if handleFolderSuggestionReplyIfNeeded(text, currentCaseId: caseId, workspace: workspace) {
             return true
         }
 
         if handlePendingCaseUpdateReplyIfNeeded(text, currentCaseId: caseId, workspace: workspace) {
+            return true
+        }
+
+        if let applied = conversationManager.handleNaturalLanguageCaseIntent(
+            text: text,
+            currentCaseId: caseId,
+            attachmentNames: attachmentNames,
+            attachmentContents: attachmentContents
+        ) {
+            applyAppliedCaseUpdate(applied, workspace: workspace)
             return true
         }
 
@@ -177,8 +206,6 @@ final class ChatViewModel: ObservableObject {
             return true
         }
 
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasAttachments = !attachmentNames.isEmpty
         guard !trimmed.isEmpty || hasAttachments else { return false }
 
         errorMessage = nil
@@ -248,16 +275,29 @@ final class ChatViewModel: ObservableObject {
         guard conversationManager.hasPendingCaseUpdate(for: currentCaseId) else { return false }
         guard let applied = conversationManager.resolvePendingCaseUpdateReply(text, currentCaseId: currentCaseId) else { return false }
 
-        if let targetFolder = workspace.caseTreeViewModel.cases.first(where: { $0.id == applied.caseId }) {
-            workspace.selectCase(byFolder: targetFolder)
-            workspace.caseTreeViewModel.selectedWorkspaceSection = applied.subfolder == .timeline ? .timeline : applied.subfolder == .documents ? .documents : .chat
-            workspace.caseTreeViewModel.selectedSubfolder = applied.subfolder
-            workspace.caseTreeViewModel.selectedFileId = applied.fileId
-            selectedCaseId = applied.caseId
-            selectedSubfolder = applied.subfolder
-            selectedFileId = applied.fileId
-        }
+        applyAppliedCaseUpdate(applied, workspace: workspace)
         return true
+    }
+
+    private func applyAppliedCaseUpdate(_ applied: ConversationManager.AppliedCaseUpdate, workspace: WorkspaceManager) {
+        guard let targetFolder = workspace.caseTreeViewModel.cases.first(where: { $0.id == applied.caseId }) else { return }
+        workspace.selectCase(byFolder: targetFolder)
+        let section: CaseWorkspaceSection = {
+            switch applied.subfolder {
+            case .timeline: return .timeline
+            case .documents, .filedDocuments: return .documents
+            case .evidence: return .evidence
+            case .history: return .history
+            case .response: return .chat
+            case .recordings: return .recordings
+            }
+        }()
+        workspace.caseTreeViewModel.selectedWorkspaceSection = section
+        workspace.caseTreeViewModel.selectedSubfolder = applied.subfolder
+        workspace.caseTreeViewModel.selectedFileId = applied.fileId
+        selectedCaseId = applied.caseId
+        selectedSubfolder = applied.subfolder
+        selectedFileId = applied.fileId
     }
 
     private func handleDirectCaseCommandIfNeeded(
@@ -274,16 +314,7 @@ final class ChatViewModel: ObservableObject {
             attachmentContents: attachmentContents
         ) else { return false }
 
-        if let targetFolder = workspace.caseTreeViewModel.cases.first(where: { $0.id == applied.caseId }) {
-            workspace.selectCase(byFolder: targetFolder)
-            workspace.caseTreeViewModel.selectedWorkspaceSection = applied.subfolder == .timeline ? .timeline : .chat
-            workspace.caseTreeViewModel.selectedSubfolder = applied.subfolder
-            workspace.caseTreeViewModel.selectedFileId = applied.fileId
-            selectedCaseId = applied.caseId
-            selectedSubfolder = applied.subfolder
-            selectedFileId = applied.fileId
-        }
-
+        applyAppliedCaseUpdate(applied, workspace: workspace)
         return true
     }
 
