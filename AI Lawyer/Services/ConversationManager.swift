@@ -767,7 +767,7 @@ final class ConversationManager: ObservableObject {
         previousMessages: [Message]
     ) async -> GuidedReplyResult {
         let chatMessage = ChatMessage(sender: .user, text: latestUserText)
-        let messagesSnapshot = previousMessages.isEmpty ? nil : previousMessages
+        let messagesSnapshot = previousMessages
         let engineForNetwork = aiEngine
         return await Task.detached {
             do {
@@ -787,6 +787,26 @@ final class ConversationManager: ObservableObject {
         _ stage: GuidedCaseStage,
         latestUserMessage: String
     ) -> (prompt: String, userText: String, targetSubfolder: CaseSubfolder, nextStage: GuidedCaseStage) {
+        let directAnswerMode = isDirectLegalQuestion(latestUserMessage)
+        let directAnswerAddition = """
+
+        The user is asking a direct legal question. Answer immediately with clear steps, strategy, and documents needed. Do not ask multiple intake questions first.
+        """
+
+        if directAnswerMode {
+            return (
+                prompt: """
+                \(AIEngine.guidedCaseChatSystemPrompt)
+                \(directAnswerAddition)
+
+                Give a practical answer right away. Use short sections or bullets if helpful. Be specific, efficient, and human. After answering, offer one concrete next action to help build the case.
+                """,
+                userText: latestUserMessage,
+                targetSubfolder: .response,
+                nextStage: .completed
+            )
+        }
+
         switch stage {
         case .initialSummary:
             return (
@@ -794,13 +814,10 @@ final class ConversationManager: ObservableObject {
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
                 Stage: initial case intake.
-                Respond with:
-                - one very short sentence summarizing what the user said
-                - one short sentence saying they may be entitled to compensation if the facts support it
-                - exactly 4 short clarifying questions about the facts
-                Ask about practical details like time, rent, lease, address, notice, conditions, or communications when relevant.
-                Keep it under 6 short lines total.
-                No headers. No long explanation. Sound calm and conversational.
+                Respond naturally to what the user just shared.
+                Briefly acknowledge it, identify what matters most so far, and ask 1-3 relevant follow-up questions if needed.
+                Move the case forward instead of staying generic.
+                No headers. No legalese. No repeated questions.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -812,10 +829,9 @@ final class ConversationManager: ObservableObject {
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
                 Stage: continue fact gathering.
-                Briefly acknowledge the user's answers in 1 short sentence.
-                Then ask exactly 3 more short clarifying questions that help build the case record.
-                Be curious, practical, and compassionate.
-                Keep it under 4 short lines total.
+                Briefly acknowledge what the user answered.
+                Ask 1-3 relevant follow-up questions only if they are still needed.
+                If enough is already clear, start moving toward likely claims, strategy, or next steps instead of asking more basics.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -827,9 +843,9 @@ final class ConversationManager: ObservableObject {
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
                 Stage: continue fact gathering.
-                Briefly acknowledge the user's answers in 1 short sentence.
-                Then ask 1 or 2 short clarifying questions that help complete the factual picture.
-                Keep it concise and conversational.
+                Briefly acknowledge the user's answers.
+                Ask 1-3 relevant follow-up questions only if there are material gaps.
+                If the factual picture is strong enough, start offering a short strategy or next action instead of looping intake.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -841,9 +857,9 @@ final class ConversationManager: ObservableObject {
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
                 Stage: enough facts gathered for a first strategy.
-                Briefly acknowledge the user in 1 short sentence.
-                Then ask exactly: "Would you like me to put together a short strategy for you?"
-                Keep it under 2 short sentences.
+                Briefly acknowledge the user and offer the next concrete action.
+                Ask whether they want you to put together a short strategy for them.
+                Keep it natural and concise.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -856,8 +872,8 @@ final class ConversationManager: ObservableObject {
 
                 The user is in ongoing case Q&A.
                 Answer the user's question briefly and practically in plain language.
-                Use no more than 3 short sentences.
-                End with: "Do you have any other questions?"
+                If appropriate, include steps, strategy, documents needed, and filing direction.
+                End with one smart next question or one concrete next action.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -884,6 +900,18 @@ final class ConversationManager: ObservableObject {
         return nil
     }
 
+    private func isDirectLegalQuestion(_ text: String) -> Bool {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let triggers = [
+            "how do i",
+            "what do i do",
+            "can i sue",
+            "what happens if",
+            "what are my rights"
+        ]
+        return triggers.contains { normalized.contains($0) }
+    }
+
     private func handleStrategyConsentReply(_ text: String, caseId: UUID) async -> String? {
         guard let decision = normalizedDecision(text) else { return nil }
         if decision == false {
@@ -898,10 +926,9 @@ final class ConversationManager: ObservableObject {
             \(AIEngine.guidedCaseChatSystemPrompt)
 
             Stage: strategy offer accepted.
-            Give one short primary strategy and one short secondary strategy.
-            Use very plain language.
-            Then ask exactly: "Would you like to proceed?"
-            Keep it under 4 short lines total.
+            Give a clear primary strategy and a realistic secondary strategy.
+            Keep it concise, practical, and easy to follow.
+            Then ask whether the user wants to proceed.
             """,
             latestUserText: text,
             previousMessages: messagesForCase(caseId: caseId)
@@ -928,9 +955,8 @@ final class ConversationManager: ObservableObject {
 
             Stage: proceed with the strategy.
             Give a short proceed plan with immediate next steps.
-            Use plain language and no more than 3 bullet points.
-            Then ask exactly: "Do you have any questions?"
-            Keep it concise.
+            Use plain language, stay practical, and keep it concise.
+            Then ask whether the user has questions or wants help with the next deliverable.
             """,
             latestUserText: text,
             previousMessages: messagesForCase(caseId: caseId)
@@ -969,8 +995,8 @@ final class ConversationManager: ObservableObject {
 
             Stage: answer a follow-up question.
             Answer the user's question briefly and clearly based on the conversation so far.
-            Use no more than 3 short sentences.
-            End with either "Do you have any other questions?" or "If not, I can list the documents needed."
+            If appropriate, give steps, strategy, documents needed, and filing direction.
+            End with either a smart next question or an offer to help with the next deliverable.
             """,
             latestUserText: text,
             previousMessages: messagesForCase(caseId: caseId)
@@ -998,9 +1024,8 @@ final class ConversationManager: ObservableObject {
 
             Stage: documents needed.
             List the main documents or records the user should gather next.
-            Use short bullet points only.
-            Keep the list focused and easy to understand.
-            Keep it practical and concise.
+            Keep the list focused, practical, and easy to understand.
+            If helpful, group by what they likely already have versus what they still need.
             """,
             latestUserText: text,
             previousMessages: messagesForCase(caseId: caseId)
