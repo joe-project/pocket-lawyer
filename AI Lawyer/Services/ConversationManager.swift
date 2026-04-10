@@ -50,6 +50,7 @@ final class ConversationManager: ObservableObject {
     private var guidedStages: [UUID: GuidedCaseStage] = [:]
     private var pendingCaseUpdates: [UUID: PendingCaseUpdate] = [:]
     private var lastSuggestedUpdateMessageIds: [UUID: UUID] = [:]
+    private var lastStrategyOfferUserCount: [UUID: Int] = [:]
 
     /// When set, case analysis is stored here and the dashboard can refresh from it.
     weak var caseManager: CaseManager?
@@ -334,8 +335,332 @@ final class ConversationManager: ObservableObject {
         try? await Task.sleep(nanoseconds: responseDelayNanoseconds(for: text))
     }
 
+    private func substantiveUserTurnCount(for caseId: UUID) -> Int {
+        messagesForCase(caseId: caseId).filter { msg in
+            guard msg.role == "user" else { return false }
+            return msg.content.trimmingCharacters(in: .whitespacesAndNewlines).count >= 30
+        }.count
+    }
+
+    private func buildAutonomousCaseContext(for caseId: UUID) -> String {
+        let memory = CaseMemoryStore.shared.memoryOrEmpty(for: caseId)
+        let analysis = caseManager?.getCase(byId: caseId)?.analysis
+        let cachedStrategy = contextCache.get(forCaseId: caseId)?.strategy
+        let evidenceFiles = caseTreeViewModel?.files(for: caseId, subfolder: .evidence) ?? []
+        let timeline = caseTreeViewModel?.events(for: caseId) ?? []
+        let recentMessages = messagesForCase(caseId: caseId)
+            .suffix(8)
+            .map { "\($0.role.capitalized): \($0.content)" }
+
+        let knownFacts = [
+            analysis?.summary,
+            memory.events.first,
+            memory.damagesEstimate.map { "Damages: \($0)" }
+        ]
+        .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+
+        let people = memory.people
+        let timelineSummary = (
+            analysis?.timeline.map(\.description) ??
+            timeline.map { "\($0.title)\($0.summary.map { ": \($0)" } ?? "")" }
+        )
+        let evidenceCollected = Array(Set(memory.evidence + evidenceFiles.map(\.name)))
+        let missingEvidence = analysis?.evidenceNeeded ?? []
+        let currentStrategy = strategySummary(from: cachedStrategy)
+        let substantiveTurns = substantiveUserTurnCount(for: caseId)
+
+        let claimsFromAnalysis = (analysis?.claims ?? [])
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let damagesAnalysis = analysis?.estimatedDamages.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let docsFromAnalysis = (analysis?.documents ?? []).prefix(8).joined(separator: ", ")
+        let filingFromAnalysis = (analysis?.filingLocations ?? []).prefix(5).joined(separator: ", ")
+        let nextStepsAnalysis = (analysis?.nextSteps ?? []).prefix(5).joined(separator: " | ")
+
+        return """
+        - Known facts: \(knownFacts.isEmpty ? "None confirmed yet." : knownFacts.joined(separator: " | "))
+        - People involved: \(people.isEmpty ? "None identified yet." : people.joined(separator: ", "))
+        - Timeline summary: \(timelineSummary.isEmpty ? "No anchored timeline yet." : timelineSummary.prefix(8).joined(separator: " | "))
+        - Evidence collected: \(evidenceCollected.isEmpty ? "No evidence logged yet." : evidenceCollected.prefix(10).joined(separator: ", "))
+        - Missing evidence: \(missingEvidence.isEmpty ? "Not clearly identified yet." : missingEvidence.prefix(8).joined(separator: ", "))
+        - Current strategy: \(currentStrategy ?? "No formal strategy yet.")
+        - Analysis claims (if any): \(claimsFromAnalysis.isEmpty ? "None yet." : claimsFromAnalysis.prefix(8).joined(separator: "; "))
+        - Estimated damages (analysis): \(damagesAnalysis.isEmpty ? "Not set." : damagesAnalysis)
+        - Suggested documents (analysis): \(docsFromAnalysis.isEmpty ? "None yet." : docsFromAnalysis)
+        - Where to file (analysis): \(filingFromAnalysis.isEmpty ? "Not set." : filingFromAnalysis)
+        - Next steps (analysis): \(nextStepsAnalysis.isEmpty ? "Not set." : nextStepsAnalysis)
+        - Substantive user turns (approx.): \(substantiveTurns). If this is 3 or more, populate SYSTEM DATA claims and documents_to_generate when appropriate.
+        - Recent conversation: \(recentMessages.isEmpty ? "No prior turns." : recentMessages.joined(separator: " || "))
+        """
+    }
+
+    private func strategySummary(from strategy: LitigationStrategy?) -> String? {
+        guard let strategy else { return nil }
+        let pieces = [
+            strategy.legalTheories.first.map { "Theories: \($0)" },
+            strategy.strengths.first.map { "Strength: \($0)" },
+            strategy.weaknesses.first.map { "Weakness: \($0)" },
+            strategy.litigationPlan.first.map { "Plan: \($0)" }
+        ].compactMap { $0 }
+        return pieces.isEmpty ? nil : pieces.joined(separator: " | ")
+    }
+
+    private struct ParsedChatEnvelope {
+        let visibleResponse: String
+        let payload: CaseUpdatePayload?
+    }
+
+    private struct ChatSystemDataEnvelope: Decodable {
+        let claims: [String]
+        let evidence_detected: [String]
+        let timeline_events: [String]
+        let documents_to_generate: [String]
+        let strategy_trigger: Bool
+    }
+
+    private func jsonStringAfterSystemDataMarker(_ response: String) -> String? {
+        guard let markerRange = response.range(of: "SYSTEM DATA (JSON):", options: .caseInsensitive) else {
+            return nil
+        }
+        var jsonText = String(response[markerRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if jsonText.hasPrefix("```") {
+            jsonText.removeFirst(3)
+            jsonText = jsonText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if jsonText.lowercased().hasPrefix("json") {
+                jsonText = String(jsonText.dropFirst(4)).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            if let fence = jsonText.range(of: "```") {
+                jsonText = String(jsonText[..<fence.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return jsonText.isEmpty ? nil : jsonText
+    }
+
+    private func parseChatEnvelope(_ response: String) -> ParsedChatEnvelope {
+        guard let markerRange = response.range(of: "SYSTEM DATA (JSON):", options: .caseInsensitive) else {
+            return ParsedChatEnvelope(
+                visibleResponse: response.trimmingCharacters(in: .whitespacesAndNewlines),
+                payload: nil
+            )
+        }
+
+        let visible = response[..<markerRange.lowerBound]
+            .replacingOccurrences(of: "VISIBLE RESPONSE:", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: "---", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let jsonText = jsonStringAfterSystemDataMarker(response),
+              let data = jsonText.data(using: .utf8),
+              let envelope = try? JSONDecoder().decode(ChatSystemDataEnvelope.self, from: data) else {
+            return ParsedChatEnvelope(
+                visibleResponse: visible.isEmpty ? response.trimmingCharacters(in: .whitespacesAndNewlines) : visible,
+                payload: nil
+            )
+        }
+
+        let payload = CaseUpdatePayload(
+            extractedFacts: envelope.claims.map { ExtractedLegalFact(kind: .claim, value: $0, confidence: 0.72) },
+            timelineEvents: envelope.timeline_events.map { CaseTimelineEvent(date: nil, description: $0) },
+            evidenceItems: envelope.evidence_detected.map { WorkflowEvidenceItem(title: $0, category: "Detected", status: .have, isTentative: true) },
+            documentRequirements: envelope.documents_to_generate.map {
+                DocumentRequirement(title: $0, urgency: .soon, stage: .filing, isTentative: true)
+            },
+            strategyNotes: envelope.claims.map { StrategyNote(category: .strength, text: "Potential claim identified: \($0)", isTentative: true) },
+            shouldOfferStrategy: envelope.strategy_trigger,
+            shouldOfferTimelineUpdate: !envelope.timeline_events.isEmpty,
+            shouldOfferEvidenceUpdate: !envelope.evidence_detected.isEmpty,
+            shouldOfferDocumentChecklist: !envelope.documents_to_generate.isEmpty
+        )
+
+        return ParsedChatEnvelope(
+            visibleResponse: visible.isEmpty ? response.trimmingCharacters(in: .whitespacesAndNewlines) : visible,
+            payload: payload
+        )
+    }
+
+    private func caseHasLiabilityDamagesEvidence(caseId: UUID, payload: CaseUpdatePayload) -> Bool {
+        guard let analysis = caseManager?.getCase(byId: caseId)?.analysis else { return false }
+        let claims = analysis.claims.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        guard !claims.isEmpty else { return false }
+
+        let damages = analysis.estimatedDamages.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !damages.isEmpty else { return false }
+        let damagesUnknown: Set<String> = ["n/a", "na", "to be assessed", "unknown", "none", "not applicable", "tbd", "n/a."]
+        guard !damagesUnknown.contains(damages) else { return false }
+
+        let files = caseTreeViewModel?.files(for: caseId, subfolder: .evidence) ?? []
+        let memoryEvidence = CaseMemoryStore.shared.memoryOrEmpty(for: caseId).evidence
+        let hasProof = !files.isEmpty || !memoryEvidence.isEmpty || !payload.evidenceItems.isEmpty
+        return hasProof
+    }
+
+    private func maybeOfferAutonomousStrategy(
+        caseId: UUID,
+        payload: CaseUpdatePayload,
+        latestUserText: String,
+        userMessageCount: Int,
+        assistantVisible: String
+    ) {
+        let normalized = latestUserText.lowercased()
+        let userIntent = normalized.contains("i want to sue")
+            || normalized.contains("what should i do")
+            || normalized.contains("how do i")
+            || normalized.contains("can i sue")
+            || normalized.contains("how do i sue")
+            || normalized.contains("i want to file")
+            || normalized.contains("should i sue")
+
+        let enoughFacts = userMessageCount >= 3
+            && (!payload.extractedFacts.isEmpty || payload.caseType != nil)
+            && (!payload.evidenceItems.isEmpty || !payload.timelineEvents.isEmpty || !payload.strategyNotes.isEmpty)
+
+        let liabilityBundle = caseHasLiabilityDamagesEvidence(caseId: caseId, payload: payload)
+
+        guard payload.shouldOfferStrategy || userIntent || enoughFacts || liabilityBundle else { return }
+        guard stage(for: caseId) != .awaitingStrategyConsent && stage(for: caseId) != .awaitingProceedConsent else { return }
+        guard lastStrategyOfferUserCount[caseId] != userMessageCount else { return }
+
+        lastStrategyOfferUserCount[caseId] = userMessageCount
+
+        let offerNeedle = "map out a strategy to pursue this"
+        if !assistantVisible.localizedCaseInsensitiveContains(offerNeedle) {
+            addLocalAssistantMessage("I can map out a strategy to pursue this. Want me to build that for you?", caseId: caseId)
+        }
+        setStage(.awaitingStrategyConsent, for: caseId)
+    }
+
+    private func enrichAutonomousTriggers(_ payload: inout CaseUpdatePayload, userMessage: Message, caseId: UUID) {
+        let text = userMessage.content.lowercased()
+
+        let admissionSignals = [
+            "admitted", "he admitted", "she admitted", "they admitted", "boss admitted", "landlord admitted",
+            "confessed", "i have texts", "i have text", "i have messages", "i have screenshots", "i have emails",
+            "i have photos", "i recorded", "recording of", "i have proof", "witness saw", "signed a", "written admission"
+        ]
+        if admissionSignals.contains(where: { text.contains($0) }) {
+            payload.shouldOfferEvidenceUpdate = true
+            if payload.evidenceItems.isEmpty {
+                payload.evidenceItems.append(
+                    WorkflowEvidenceItem(
+                        title: "Described admission, messages, or proof",
+                        category: "Statements & media",
+                        status: .have,
+                        linkedMessageId: userMessage.id,
+                        isTentative: true
+                    )
+                )
+            }
+        }
+
+        if userMessageSuggestsTimeline(userMessage.content) {
+            payload.shouldOfferTimelineUpdate = true
+            if payload.timelineEvents.isEmpty {
+                let desc = userMessage.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                payload.timelineEvents.append(CaseTimelineEvent(date: nil, description: desc))
+            }
+        }
+
+        let turns = substantiveUserTurnCount(for: caseId)
+        if turns >= 3 {
+            payload.shouldOfferStrategy = true
+            payload.shouldOfferDocumentChecklist = true
+        }
+
+        if ["i want to sue", "i want to file", "should i sue", "what should i do", "how do i sue"].contains(where: { text.contains($0) }) {
+            payload.shouldOfferStrategy = true
+            payload.shouldOfferDocumentChecklist = true
+        }
+    }
+
+    private func userMessageSuggestsTimeline(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        if lower.contains("deadline") || lower.contains("hearing") || lower.contains("filed") || lower.contains("served") { return true }
+        if lower.contains("yesterday") || lower.contains("last week") || lower.contains("last month") || lower.contains("months ago") { return true }
+        if lower.contains("today") || lower.contains("tomorrow") { return true }
+        if text.range(of: #"\b20\d{2}\b"#, options: .regularExpression) != nil { return true }
+        if text.range(of: #"\b\d{1,2}/\d{1,2}"#, options: .regularExpression) != nil { return true }
+        return false
+    }
+
+    private func sourceTextForCaseUpdates(caseId: UUID, fallback: String) -> String {
+        let t = fallback.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = t.lowercased()
+        let shortAffirmations: Set<String> = ["yes", "y", "yeah", "sure", "ok", "okay", "please", "proceed", "no", "n", "nope", "not now"]
+        if t.count < 14, shortAffirmations.contains(lower) {
+            return messagesForCase(caseId: caseId)
+                .reversed()
+                .first { $0.role == "user" && $0.content.trimmingCharacters(in: .whitespacesAndNewlines).count > 20 }?
+                .content
+                ?? t
+        }
+        return t
+    }
+
+    private func autoApplyUserSignals(_ payload: CaseUpdatePayload, message: Message, caseId: UUID, userMessageCount: Int) {
+        if payload.shouldOfferEvidenceUpdate {
+            _ = applyEvidenceUpdate(
+                caseId: caseId,
+                sourceText: message.content,
+                attachmentNames: message.attachmentNames,
+                attachmentContents: message.attachmentContents
+            )
+        }
+
+        if payload.shouldOfferTimelineUpdate {
+            _ = applyTimelineUpdate(caseId: caseId, sourceText: message.content)
+        }
+    }
+
+    private func autoApplyAssistantPayload(_ payload: CaseUpdatePayload, caseId: UUID, userMessageText: String, assistantVisible: String) {
+        syncStructuredPayload(payload, into: caseId)
+
+        let source = sourceTextForCaseUpdates(caseId: caseId, fallback: userMessageText)
+
+        if payload.shouldOfferTimelineUpdate {
+            _ = applyTimelineUpdate(caseId: caseId, sourceText: source)
+        }
+
+        if payload.shouldOfferEvidenceUpdate {
+            _ = applyEvidenceUpdate(caseId: caseId, sourceText: source, attachmentNames: [], attachmentContents: [])
+        }
+
+        let userCount = messagesForCase(caseId: caseId).filter { $0.role == "user" }.count
+        maybeOfferAutonomousStrategy(
+            caseId: caseId,
+            payload: payload,
+            latestUserText: userMessageText,
+            userMessageCount: userCount,
+            assistantVisible: assistantVisible
+        )
+    }
+
     private func syncStructuredPayload(_ payload: CaseUpdatePayload, into caseId: UUID) {
         guard let tree = caseTreeViewModel else { return }
+
+        if !payload.timelineEvents.isEmpty {
+            for event in payload.timelineEvents {
+                let title = String(event.description.prefix(80)).trimmingCharacters(in: .whitespacesAndNewlines)
+                let summary = event.description.trimmingCharacters(in: .whitespacesAndNewlines)
+                let exists = tree.events(for: caseId).contains {
+                    $0.title.caseInsensitiveCompare(title.isEmpty ? "Timeline update" : title) == .orderedSame &&
+                    ($0.summary ?? "").caseInsensitiveCompare(summary) == .orderedSame
+                }
+                if !exists {
+                    tree.addTimelineEvent(
+                        TimelineEvent(
+                            kind: .response,
+                            title: title.isEmpty ? "Timeline update" : title,
+                            summary: summary.isEmpty ? nil : summary,
+                            createdAt: Date(),
+                            documentId: nil,
+                            subfolder: .timeline
+                        ),
+                        caseId: caseId
+                    )
+                }
+            }
+        }
 
         if !payload.evidenceItems.isEmpty {
             let text = payload.evidenceItems.map { item in
@@ -578,20 +903,28 @@ final class ConversationManager: ObservableObject {
         print("🔥 submitUserContent user message count:", messages.count)
 
         if let id = caseId {
-            let payload = legalSignalExtractor.extract(
+            var payload = legalSignalExtractor.extract(
                 from: message.content,
                 attachmentNames: message.attachmentNames,
                 attachmentContents: message.attachmentContents,
                 messageId: message.id
             )
+            enrichAutonomousTriggers(&payload, userMessage: message, caseId: id)
             syncStructuredPayload(payload, into: id)
+            autoApplyUserSignals(
+                payload,
+                message: message,
+                caseId: id,
+                userMessageCount: existingUserMessageCount + 1
+            )
         }
 
-        // First user submission for this case: create initial CaseMemory, update it with the new info, mark progress, and enqueue reasoning.
-        if let id = caseId, existingUserMessageCount == 0 {
-            CaseMemoryStore.shared.setMemory(CaseMemory(), forCaseId: id)
-            CaseProgressStore.shared.markCompleted(caseId: id, stageTitle: "Asked first legal question")
-            CaseProgressStore.shared.markCompleted(caseId: id, stageTitle: "Started example case")
+        if let id = caseId {
+            if existingUserMessageCount == 0 {
+                CaseMemoryStore.shared.setMemory(CaseMemory(), forCaseId: id)
+                CaseProgressStore.shared.markCompleted(caseId: id, stageTitle: "Asked first legal question")
+                CaseProgressStore.shared.markCompleted(caseId: id, stageTitle: "Started example case")
+            }
 
             let newInfo = effectiveUserContent(for: message)
             Task.detached { [weak self] in
@@ -613,27 +946,6 @@ final class ConversationManager: ObservableObject {
         guard let last = caseMessages.last, last.role == "user" else { return nil }
         let previous = Array(caseMessages.dropLast())
         if let caseId {
-            if let local = localGuidedReply(for: stage(for: caseId), caseId: caseId, latestUserMessage: last.content) {
-                await pauseBeforeReply(local.content)
-                let assistantMessage = appendAssistantResponse(
-                    local.content,
-                    caseId: caseId,
-                    baseFileId: fileId,
-                    targetSubfolder: local.targetSubfolder
-                )
-                setStage(local.nextStage, for: caseId)
-
-                NotificationCenter.default.post(
-                    name: .contextualMonetizationAIInteraction,
-                    object: nil,
-                    userInfo: [
-                        "caseId": caseId.uuidString,
-                        "fileId": assistantMessage.fileId?.uuidString ?? ""
-                    ]
-                )
-                return local.content
-            }
-
             switch stage(for: caseId) {
             case .awaitingStrategyConsent:
                 if let response = await handleStrategyConsentReply(last.content, caseId: caseId) {
@@ -667,19 +979,31 @@ final class ConversationManager: ObservableObject {
         let result = await runGuidedChatRequest(
             prompt: request.prompt,
             latestUserText: request.userText,
-            previousMessages: previous
+            previousMessages: previous,
+            caseId: caseId
         )
         switch result {
         case .success(let response):
-            print("🔥 AI RESPONSE RECEIVED:", response)
-            await pauseBeforeReply(response)
+            let parsed = parseChatEnvelope(response)
+            let visibleResponse = parsed.visibleResponse
+            print("🔥 AI RESPONSE RECEIVED:", visibleResponse)
+            await pauseBeforeReply(visibleResponse)
             let assistantMessage = appendAssistantResponse(
-                response,
+                visibleResponse,
                 caseId: caseId,
                 baseFileId: fileId,
                 targetSubfolder: request.targetSubfolder
             )
             setStage(request.nextStage, for: caseId)
+
+            if let caseId, let payload = parsed.payload {
+                autoApplyAssistantPayload(
+                    payload,
+                    caseId: caseId,
+                    userMessageText: last.content,
+                    assistantVisible: visibleResponse
+                )
+            }
 
             NotificationCenter.default.post(
                 name: .contextualMonetizationAIInteraction,
@@ -694,10 +1018,7 @@ final class ConversationManager: ObservableObject {
                 addResumeIntakeOfferMessage(caseId: caseId, fileId: assistantMessage.fileId)
             }
             maybeOfferFolderSuggestion(caseId: caseId)
-            if let caseId {
-                maybeOfferCaseUpdateSuggestion(for: last, caseId: caseId)
-            }
-            return response
+            return visibleResponse
         case .failure(let error):
             print("getAIReply failed:", error)
             return nil
@@ -764,17 +1085,21 @@ final class ConversationManager: ObservableObject {
     private func runGuidedChatRequest(
         prompt: String,
         latestUserText: String,
-        previousMessages: [Message]
+        previousMessages: [Message],
+        caseId: UUID?
     ) async -> GuidedReplyResult {
         let chatMessage = ChatMessage(sender: .user, text: latestUserText)
         let messagesSnapshot = previousMessages
         let engineForNetwork = aiEngine
+        let caseContext = caseId.map(buildAutonomousCaseContext(for:))
         return await Task.detached {
             do {
                 let (response, _, _) = try await engineForNetwork.chat(
                     messages: [chatMessage],
                     previousMessages: messagesSnapshot,
-                    systemPrompt: prompt
+                    systemPrompt: prompt,
+                    caseContext: caseContext,
+                    appendStructuredOutput: caseId != nil
                 )
                 return GuidedReplyResult.success(response)
             } catch {
@@ -790,7 +1115,13 @@ final class ConversationManager: ObservableObject {
         let directAnswerMode = isDirectLegalQuestion(latestUserMessage)
         let directAnswerAddition = """
 
-        The user is asking a direct legal question. Answer immediately with clear steps, strategy, and documents needed. Do not ask multiple intake questions first.
+        Direct-question fast mode: answer immediately—no intake loop. Use numbered sections:
+        1) Quick legal overview
+        2) Step-by-step actions
+        3) Documents needed
+        4) Where to file
+        Then end with exactly: “I can help you build this step-by-step inside your case if you want.”
+        Still append VISIBLE RESPONSE + SYSTEM DATA (JSON) as required.
         """
 
         if directAnswerMode {
@@ -799,7 +1130,7 @@ final class ConversationManager: ObservableObject {
                 \(AIEngine.guidedCaseChatSystemPrompt)
                 \(directAnswerAddition)
 
-                Give a practical answer right away. Use short sections or bullets if helpful. Be specific, efficient, and human. After answering, offer one concrete next action to help build the case.
+                Be specific and efficient. Populate SYSTEM DATA with any claims, evidence, timeline_events, and documents_to_generate implied by the question.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .response,
@@ -814,10 +1145,9 @@ final class ConversationManager: ObservableObject {
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
                 Stage: initial case intake.
-                Respond naturally to what the user just shared.
-                Briefly acknowledge it, identify what matters most so far, and ask 1-3 relevant follow-up questions if needed.
-                Move the case forward instead of staying generic.
-                No headers. No legalese. No repeated questions.
+                Use CASE CONTEXT; do not re-ask what is already captured there.
+                Acknowledge what is new, name the most important legal angles so far, and ask at most one sharp follow-up unless a critical gap remains.
+                Deliver at least one concrete insight (claim direction, risk, or document to preserve) every turn.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -829,9 +1159,8 @@ final class ConversationManager: ObservableObject {
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
                 Stage: continue fact gathering.
-                Briefly acknowledge what the user answered.
-                Ask 1-3 relevant follow-up questions only if they are still needed.
-                If enough is already clear, start moving toward likely claims, strategy, or next steps instead of asking more basics.
+                Tie answers to CASE CONTEXT; never repeat prior questions.
+                Ask one follow-up only if a material gap remains; otherwise advance to likely claims, proof plan, or next filings.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -842,10 +1171,9 @@ final class ConversationManager: ObservableObject {
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
-                Stage: continue fact gathering.
-                Briefly acknowledge the user's answers.
-                Ask 1-3 relevant follow-up questions only if there are material gaps.
-                If the factual picture is strong enough, start offering a short strategy or next action instead of looping intake.
+                Stage: deepen the record efficiently.
+                Prefer summarizing what the case file now supports and listing the next proof or procedural step over more generic Q&A.
+                At most one follow-up if something essential is still missing.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -856,10 +1184,9 @@ final class ConversationManager: ObservableObject {
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
 
-                Stage: enough facts gathered for a first strategy.
-                Briefly acknowledge the user and offer the next concrete action.
-                Ask whether they want you to put together a short strategy for them.
-                Keep it natural and concise.
+                Stage: pivot from intake to action.
+                Offer the next concrete legal move (preserve evidence, demand, agency charge, filing path) and invite a short strategy pass.
+                Avoid yes/no dead-ends without guidance.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -907,7 +1234,12 @@ final class ConversationManager: ObservableObject {
             "what do i do",
             "can i sue",
             "what happens if",
-            "what are my rights"
+            "what are my rights",
+            "how do i sue",
+            "i want to sue",
+            "should i sue",
+            "where do i file",
+            "what court"
         ]
         return triggers.contains { normalized.contains($0) }
     }
@@ -921,6 +1253,13 @@ final class ConversationManager: ObservableObject {
             return content
         }
 
+        if let strategyResponse = await buildStrategyResponse(caseId: caseId) {
+            await pauseBeforeReply(strategyResponse)
+            _ = appendAssistantResponse(strategyResponse, caseId: caseId, baseFileId: nil, targetSubfolder: .response)
+            setStage(.awaitingProceedConsent, for: caseId)
+            return strategyResponse
+        }
+
         let result = await runGuidedChatRequest(
             prompt: """
             \(AIEngine.guidedCaseChatSystemPrompt)
@@ -931,13 +1270,19 @@ final class ConversationManager: ObservableObject {
             Then ask whether the user wants to proceed.
             """,
             latestUserText: text,
-            previousMessages: messagesForCase(caseId: caseId)
+            previousMessages: messagesForCase(caseId: caseId),
+            caseId: caseId
         )
         guard case .success(let response) = result else { return nil }
-        await pauseBeforeReply(response)
-        _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .response)
+        let parsed = parseChatEnvelope(response)
+        let visibleResponse = parsed.visibleResponse
+        await pauseBeforeReply(visibleResponse)
+        _ = appendAssistantResponse(visibleResponse, caseId: caseId, baseFileId: nil, targetSubfolder: .response)
+        if let payload = parsed.payload {
+            autoApplyAssistantPayload(payload, caseId: caseId, userMessageText: text, assistantVisible: visibleResponse)
+        }
         setStage(.awaitingProceedConsent, for: caseId)
-        return response
+        return visibleResponse
     }
 
     private func handleProceedConsentReply(_ text: String, caseId: UUID) async -> String? {
@@ -959,13 +1304,19 @@ final class ConversationManager: ObservableObject {
             Then ask whether the user has questions or wants help with the next deliverable.
             """,
             latestUserText: text,
-            previousMessages: messagesForCase(caseId: caseId)
+            previousMessages: messagesForCase(caseId: caseId),
+            caseId: caseId
         )
         guard case .success(let response) = result else { return nil }
-        await pauseBeforeReply(response)
-        _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .response)
+        let parsed = parseChatEnvelope(response)
+        let visibleResponse = parsed.visibleResponse
+        await pauseBeforeReply(visibleResponse)
+        _ = appendAssistantResponse(visibleResponse, caseId: caseId, baseFileId: nil, targetSubfolder: .response)
+        if let payload = parsed.payload {
+            autoApplyAssistantPayload(payload, caseId: caseId, userMessageText: text, assistantVisible: visibleResponse)
+        }
         setStage(.awaitingQuestionDecision, for: caseId)
-        return response
+        return visibleResponse
     }
 
     private func handleQuestionDecisionReply(_ text: String, caseId: UUID) async -> String? {
@@ -999,13 +1350,19 @@ final class ConversationManager: ObservableObject {
             End with either a smart next question or an offer to help with the next deliverable.
             """,
             latestUserText: text,
-            previousMessages: messagesForCase(caseId: caseId)
+            previousMessages: messagesForCase(caseId: caseId),
+            caseId: caseId
         )
         guard case .success(let response) = result else { return nil }
-        await pauseBeforeReply(response)
-        _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
+        let parsed = parseChatEnvelope(response)
+        let visibleResponse = parsed.visibleResponse
+        await pauseBeforeReply(visibleResponse)
+        _ = appendAssistantResponse(visibleResponse, caseId: caseId, baseFileId: nil, targetSubfolder: .history)
+        if let payload = parsed.payload {
+            autoApplyAssistantPayload(payload, caseId: caseId, userMessageText: text, assistantVisible: visibleResponse)
+        }
         setStage(.awaitingQuestionDecision, for: caseId)
-        return response
+        return visibleResponse
     }
 
     private func handleDocumentConsentReply(_ text: String, caseId: UUID) async -> String? {
@@ -1028,13 +1385,68 @@ final class ConversationManager: ObservableObject {
             If helpful, group by what they likely already have versus what they still need.
             """,
             latestUserText: text,
-            previousMessages: messagesForCase(caseId: caseId)
+            previousMessages: messagesForCase(caseId: caseId),
+            caseId: caseId
         )
         guard case .success(let response) = result else { return nil }
-        await pauseBeforeReply(response)
-        _ = appendAssistantResponse(response, caseId: caseId, baseFileId: nil, targetSubfolder: .documents)
+        let parsed = parseChatEnvelope(response)
+        let visibleResponse = parsed.visibleResponse
+        await pauseBeforeReply(visibleResponse)
+        _ = appendAssistantResponse(visibleResponse, caseId: caseId, baseFileId: nil, targetSubfolder: .documents)
+        if let payload = parsed.payload {
+            autoApplyAssistantPayload(payload, caseId: caseId, userMessageText: text, assistantVisible: visibleResponse)
+        }
         setStage(.completed, for: caseId)
-        return response
+        return visibleResponse
+    }
+
+    private func buildStrategyResponse(caseId: UUID) async -> String? {
+        guard let analysis = caseManager?.getCase(byId: caseId)?.analysis else { return nil }
+
+        let evidenceFiles = caseTreeViewModel?.files(for: caseId, subfolder: .evidence) ?? []
+        let evidenceSummaries = evidenceFiles.map {
+            EvidenceAnalysis(
+                summary: ($0.content?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? $0.content! : $0.name),
+                violations: [],
+                damages: nil,
+                timelineEvents: [],
+                deadlines: [],
+                missingEvidence: []
+            )
+        }
+        let timeline = analysis.timeline
+
+        do {
+            let strategy = try await aiEngine.updateLitigationStrategy(
+                caseAnalysis: analysis,
+                evidenceSummaries: evidenceSummaries,
+                timeline: timeline
+            )
+            contextCache.update(CachedCaseContext(strategy: strategy), forCaseId: caseId)
+            return formatLitigationStrategy(strategy) + "\n\nWould you like to proceed?"
+        } catch {
+            print("buildStrategyResponse failed:", error)
+            return nil
+        }
+    }
+
+    private func formatLitigationStrategy(_ strategy: LitigationStrategy) -> String {
+        let primary = strategy.legalTheories.first ?? strategy.litigationPlan.first ?? "Build the strongest supported claim first."
+        let secondary = strategy.legalTheories.dropFirst().first ?? strategy.opposingArguments.first ?? "Prepare for the likely defense and close obvious proof gaps."
+        let nextSteps = Array(strategy.litigationPlan.prefix(3))
+        let evidenceGap = strategy.evidenceGaps.first ?? strategy.weaknesses.first ?? "No major gap identified yet."
+
+        var lines: [String] = []
+        lines.append("Primary strategy: \(primary)")
+        lines.append("Secondary strategy: \(secondary)")
+        if !nextSteps.isEmpty {
+            lines.append("Next steps:")
+            for (index, step) in nextSteps.enumerated() {
+                lines.append("\(index + 1). \(step)")
+            }
+        }
+        lines.append("Important evidence gap: \(evidenceGap)")
+        return lines.joined(separator: "\n")
     }
 
     private func maybeOfferFolderSuggestion(caseId: UUID?) {
