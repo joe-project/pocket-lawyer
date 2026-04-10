@@ -167,7 +167,7 @@ private struct CaseAutofillContext {
         let firstUserMessages = caseState.messages
             .filter { $0.role == "user" }
             .prefix(3)
-            .map(\.content.trimmingCharacters(in: .whitespacesAndNewlines))
+            .map { $0.content.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
         if !firstUserMessages.isEmpty {
