@@ -101,9 +101,9 @@ final class ChatViewModel: ObservableObject {
 
     /// Submits a voice transcript through the same pipeline as typed text and intake answers (Message → ConversationManager → CaseReasoningEngine → CaseAnalysis). Call when recording finishes so the transcript is stored and the AI responds.
     func handleTranscript(_ transcript: String, caseId: UUID?) {
-        Task {
-            await MainActor.run { isSending = true }
-            defer { await MainActor.run { isSending = false } }
+        Task { @MainActor in
+            isSending = true
+            defer { isSending = false }
 
             if let w = workspace, let cid = caseId ?? selectedCaseId {
                 if let applied = conversationManager.handleNaturalLanguageCaseIntent(
@@ -112,10 +112,8 @@ final class ChatViewModel: ObservableObject {
                     attachmentNames: [],
                     attachmentContents: []
                 ) {
-                    await MainActor.run {
-                        applyAppliedCaseUpdate(applied, workspace: w)
-                        if isIntakeActive { isIntakeActive = false }
-                    }
+                    applyAppliedCaseUpdate(applied, workspace: w)
+                    if isIntakeActive { isIntakeActive = false }
                     return
                 }
             }
@@ -127,7 +125,7 @@ final class ChatViewModel: ObservableObject {
                 targetSubfolder: selectedSubfolder,
                 intakePaused: isIntakeActive
             )
-            if isIntakeActive { await MainActor.run { isIntakeActive = false } }
+            if isIntakeActive { isIntakeActive = false }
         }
     }
 
