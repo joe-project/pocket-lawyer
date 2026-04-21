@@ -18,13 +18,15 @@ final class CaseTreeViewModel: ObservableObject {
     init() {
         let (loadedCases, loadedTimeline) = storage.load()
         if loadedCases.isEmpty {
-            seedSampleData()
-            seedSampleTimeline()
+            seedStarterData()
         } else {
             cases = migrateLoadedCases(loadedCases)
             timelineEvents = loadedTimeline
-            selectedCase = cases.first(where: { $0.title == "General Law Questions" }) ?? cases.first
+            selectedCase = cases.first(where: { $0.title == "Example Case" }) ?? cases.first
         }
+        selectedWorkspaceSection = .chat
+        selectedSubfolder = .evidence
+        selectedFileId = nil
         save()
     }
 
@@ -32,84 +34,70 @@ final class CaseTreeViewModel: ObservableObject {
         storage.save(cases: cases, timelineEvents: timelineEvents)
     }
 
-    private func seedSampleData() {
-        cases = [
-            CaseFolder(title: "General Law Questions", category: .inProgress),
-            CaseFolder(title: "Jones vs. Smith (Example Case)", category: .inProgress),
-            CaseFolder(title: "Trust Law", category: .inProgress),
-            CaseFolder(title: "Family Trust Documents", category: .mockCases)
-        ]
-        selectedCase = cases.first(where: { $0.title == "General Law Questions" }) ?? cases.first
+    private func seedStarterData() {
+        let folder = makeStarterCase(id: UUID())
+        cases = [folder]
+        timelineEvents[folder.id] = []
+        selectedCase = folder
     }
 
     private func migrateLoadedCases(_ loadedCases: [CaseFolder]) -> [CaseFolder] {
-        var updated = loadedCases
-
-        if let smithIndex = updated.firstIndex(where: { $0.title == "Smith vs Jones" }) {
-            updated[smithIndex].title = "Smith vs. Johnson"
-        }
-
-        if let smithTypoIndex = updated.firstIndex(where: { $0.title == "Smith vs Johson" }) {
-            updated[smithTypoIndex].title = "Smith vs. Johnson"
-        }
-
-        updated.removeAll { folder in
-            folder.title == "Brown vs State" || folder.title == "Davis vs Miller"
-        }
-
-        updated.removeAll { folder in
-            [
-                "Smith vs. Johnson",
-                "Marriage & Family",
-                "Credit",
-                "Civil Law",
-                "Real Estate Law",
-                "Dufff Vs. Banks"
-            ].contains(folder.title)
-        }
-
-        let defaults: [(String, CaseCategory)] = [
-            ("General Law Questions", .inProgress),
-            ("Jones vs. Smith (Example Case)", .inProgress),
-            ("Trust Law", .inProgress),
-            ("Family Trust Documents", .mockCases)
+        let oldDemoTitles: Set<String> = [
+            "General Law Questions",
+            "Jones vs. Smith (Example Case)",
+            "Trust Law",
+            "Family Trust Documents",
+            "Smith vs Jones",
+            "Smith vs Johson",
+            "Smith vs. Johnson",
+            "Brown vs State",
+            "Davis vs Miller",
+            "Marriage & Family",
+            "Credit",
+            "Civil Law",
+            "Real Estate Law",
+            "Dufff Vs. Banks"
         ]
 
-        for (title, category) in defaults where !updated.contains(where: { $0.title == title }) {
-            updated.append(CaseFolder(title: title, category: category))
-        }
-
-        for index in updated.indices {
-            switch updated[index].title {
-            case "General Law Questions", "Jones vs. Smith (Example Case)", "Trust Law":
-                updated[index].category = .inProgress
-            case "Family Trust Documents":
-                updated[index].category = .mockCases
-            default:
-                break
-            }
-        }
+        var updated = loadedCases
+            .filter { !oldDemoTitles.contains($0.title) }
+            .map(normalizedCaseFolder(_:))
 
         if updated.isEmpty {
-            return defaults.map { CaseFolder(title: $0.0, category: $0.1) }
+            return [makeStarterCase(id: UUID())]
         }
 
         return updated
     }
 
-    private func seedSampleTimeline() {
-        guard let first = cases.first else { return }
-        timelineEvents[first.id] = [
-            TimelineEvent(kind: .task, title: "Initial intake", summary: "Client information gathered", createdAt: Date().addingTimeInterval(-86400 * 2)),
-            TimelineEvent(kind: .filing, title: "Complaint filed", summary: "Filed with court", createdAt: Date().addingTimeInterval(-86400)),
-            TimelineEvent(kind: .response, title: "Draft response", summary: "AI-generated draft", createdAt: Date())
-        ]
+    private func makeStarterCase(id: UUID) -> CaseFolder {
+        var folder = CaseFolder(id: id, title: "Example Case", category: .inProgress)
+        folder.hiddenSubfolders = [.recordings, .history, .filedDocuments]
+        folder.customFolderNames[.strategy] = "Strategy"
+        folder.customFolderNames[.coaching] = "Coaching"
+        folder.customFolderNames[.decisionTreePathways] = "Decision Tree Pathways"
+        folder.customFolderNames[.sayDontSay] = "Say / Don't Say"
+        return folder
+    }
+
+    private func normalizedCaseFolder(_ folder: CaseFolder) -> CaseFolder {
+        var normalized = folder
+        let hiddenDefaults: [CaseSubfolder] = [.recordings, .history, .filedDocuments]
+        for subfolder in hiddenDefaults where !normalized.hiddenSubfolders.contains(subfolder) {
+            normalized.hiddenSubfolders.append(subfolder)
+        }
+        normalized.hiddenSubfolders.removeAll(where: { $0 == .response })
+        normalized.customFolderNames[.strategy] = normalized.customFolderNames[.strategy] ?? "Strategy"
+        normalized.customFolderNames[.coaching] = normalized.customFolderNames[.coaching] ?? "Coaching"
+        normalized.customFolderNames[.decisionTreePathways] = normalized.customFolderNames[.decisionTreePathways] ?? "Decision Tree Pathways"
+        normalized.customFolderNames[.sayDontSay] = normalized.customFolderNames[.sayDontSay] ?? "Say / Don't Say"
+        return normalized
     }
 
     /// Ensures a case exists (e.g. when opening via invitation link). Adds it with the given title if not present.
     func ensureCaseExists(id: UUID, title: String) {
         guard !cases.contains(where: { $0.id == id }) else { return }
-        let folder = CaseFolder(id: id, title: title, category: .inProgress)
+        let folder = normalizedCaseFolder(CaseFolder(id: id, title: title, category: .inProgress))
         cases.append(folder)
         save()
     }
@@ -136,7 +124,7 @@ final class CaseTreeViewModel: ObservableObject {
         timelineEvents.removeValue(forKey: id)
 
         if selectedCase?.id == id {
-            selectedCase = cases.first(where: { $0.title == "General Law Questions" }) ?? cases.first
+            selectedCase = cases.first(where: { $0.title == "Example Case" }) ?? cases.first
             selectedFileId = nil
             selectedSubfolder = .evidence
             selectedWorkspaceSection = .chat
@@ -150,7 +138,8 @@ final class CaseTreeViewModel: ObservableObject {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = trimmed.isEmpty ? "New Case" : trimmed
         let id = UUID()
-        let folder = CaseFolder(id: id, title: name, category: category)
+        var folder = CaseFolder(id: id, title: name, category: category)
+        folder = normalizedCaseFolder(folder)
         cases.append(folder)
         selectedCase = folder
         selectedSubfolder = .evidence
@@ -262,7 +251,7 @@ final class CaseTreeViewModel: ObservableObject {
             switch subfolder {
             case .evidence: return .evidence
             case .documents, .filedDocuments: return .draft
-            case .response: return .strategy
+            case .response, .strategy, .coaching, .decisionTreePathways, .sayDontSay: return .strategy
             case .history, .timeline: return .note
             default: return .draft
             }

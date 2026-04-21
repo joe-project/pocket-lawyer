@@ -254,13 +254,7 @@ struct MainContentView: View {
 }
 
 enum SidebarWorkspaceItem: String {
-    case generalLawQuestions = "General Law Questions"
-    case exampleCase = "Jones vs. Smith (Example Case)"
-    case trustLaw = "Trust Law"
-    case civilLaw = "Civil Law"
-    case realEstateLaw = "Real Estate Law"
-    case familyTrustDocuments = "Family Trust Documents"
-    case dufffVsBanks = "Dufff Vs. Banks"
+    case exampleCase = "Example Case"
 }
 
 struct SidebarView: View {
@@ -281,19 +275,14 @@ struct SidebarView: View {
 
     private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
     private let primarySectionOrder = [
-        "General Law Questions",
-        "Jones vs. Smith (Example Case)",
-        "Trust Law"
-    ]
-    private let secondarySectionOrder = [
-        "Family Trust Documents"
+        "Example Case"
     ]
 
     private var casesAndResearchFolders: [CaseFolder] {
         sortFolders(caseTreeViewModel.cases.filter { $0.category == .inProgress }, using: primarySectionOrder)
     }
     private var myCasesAndVitalDocumentsFolders: [CaseFolder] {
-        sortFolders(caseTreeViewModel.cases.filter { $0.category == .mockCases }, using: secondarySectionOrder)
+        sortFolders(caseTreeViewModel.cases.filter { $0.category == .mockCases }, using: [])
     }
 
     var body: some View {
@@ -338,45 +327,47 @@ struct SidebarView: View {
                 .background(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
                 .cornerRadius(12)
 
-                Divider()
-                    .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                if !myCasesAndVitalDocumentsFolders.isEmpty || isAddingSecondaryFolder {
+                    Divider()
+                        .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
 
-                HStack(spacing: 10) {
-                    Text("My Cases & Vital Documents")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(isDarkMode ? .gray : .secondary)
+                    HStack(spacing: 10) {
+                        Text("My Cases & Vital Documents")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(isDarkMode ? .gray : .secondary)
 
-                    Button {
-                        isAddingSecondaryFolder.toggle()
-                        if !isAddingSecondaryFolder { newSecondaryFolderName = "" }
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(AppColors.primaryAccent)
+                        Button {
+                            isAddingSecondaryFolder.toggle()
+                            if !isAddingSecondaryFolder { newSecondaryFolderName = "" }
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(AppColors.primaryAccent)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                }
 
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(myCasesAndVitalDocumentsFolders) { folder in
-                        caseFolderItem(folder)
-                    }
-                    if isAddingSecondaryFolder {
-                        newCaseField(title: "New folder name", text: $newSecondaryFolderName) {
-                            let id = caseTreeViewModel.createNewCase(title: newSecondaryFolderName, category: .mockCases)
-                            if let folder = caseTreeViewModel.cases.first(where: { $0.id == id }) {
-                                workspace.selectCase(byFolder: folder)
-                                expandedCaseIds.insert(id)
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(myCasesAndVitalDocumentsFolders) { folder in
+                            caseFolderItem(folder)
+                        }
+                        if isAddingSecondaryFolder {
+                            newCaseField(title: "New folder name", text: $newSecondaryFolderName) {
+                                let id = caseTreeViewModel.createNewCase(title: newSecondaryFolderName, category: .mockCases)
+                                if let folder = caseTreeViewModel.cases.first(where: { $0.id == id }) {
+                                    workspace.selectCase(byFolder: folder)
+                                    expandedCaseIds.insert(id)
+                                }
+                                newSecondaryFolderName = ""
+                                isAddingSecondaryFolder = false
                             }
-                            newSecondaryFolderName = ""
-                            isAddingSecondaryFolder = false
                         }
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                    .cornerRadius(12)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
-                .cornerRadius(12)
             }
             .padding(.leading, 16)
             .padding(.trailing, 12)
@@ -393,10 +384,10 @@ struct SidebarView: View {
             if let selectedId = caseTreeViewModel.selectedCase?.id {
                 expandedCaseIds.insert(selectedId)
             }
-            if let generalFolder = caseTreeViewModel.cases.first(where: { $0.title == SidebarWorkspaceItem.generalLawQuestions.rawValue }) {
-                workspace.selectCase(byFolder: generalFolder)
+            if let exampleFolder = caseTreeViewModel.cases.first(where: { $0.title == SidebarWorkspaceItem.exampleCase.rawValue }) ?? caseTreeViewModel.cases.first {
+                workspace.selectCase(byFolder: exampleFolder)
                 caseTreeViewModel.selectedWorkspaceSection = .chat
-                expandedCaseIds.insert(generalFolder.id)
+                expandedCaseIds.insert(exampleFolder.id)
             }
         }
     }
@@ -452,11 +443,10 @@ struct SidebarView: View {
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 6) {
-                    caseSectionItem("Ask", section: .chat, caseFolder: folder)
+                    caseSectionItem("Chat", section: .chat, caseFolder: folder)
                     ForEach(caseTreeViewModel.visibleSubfolders(caseId: folder.id), id: \.self) { subfolder in
                         caseSubfolderItem(subfolder, caseFolder: folder)
                     }
-                    caseSectionItem("Tasks", section: .tasks, caseFolder: folder)
                     Menu {
                         ForEach(caseTreeViewModel.availableHiddenSubfolders(caseId: folder.id), id: \.self) { subfolder in
                             Button("Add \(caseTreeViewModel.folderDisplayName(caseId: folder.id, subfolder: subfolder))") {
@@ -560,7 +550,7 @@ struct SidebarView: View {
 
     private func syncSelection(for section: CaseWorkspaceSection, caseFolder: CaseFolder) {
         switch section {
-        case .timeline, .tasks, .deadlines:
+        case .timeline:
             caseTreeViewModel.selectedSubfolder = .timeline
             caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .timeline).max(by: { $0.createdAt < $1.createdAt })?.id
         case .evidence:
@@ -569,10 +559,25 @@ struct SidebarView: View {
         case .documents:
             caseTreeViewModel.selectedSubfolder = .documents
             caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .documents).max(by: { $0.createdAt < $1.createdAt })?.id
+        case .strategy:
+            caseTreeViewModel.selectedSubfolder = .strategy
+            caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .strategy).max(by: { $0.createdAt < $1.createdAt })?.id
+        case .coaching:
+            caseTreeViewModel.selectedSubfolder = .coaching
+            caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .coaching).max(by: { $0.createdAt < $1.createdAt })?.id
+        case .responses:
+            caseTreeViewModel.selectedSubfolder = .response
+            caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .response).max(by: { $0.createdAt < $1.createdAt })?.id
+        case .decisionTreePathways:
+            caseTreeViewModel.selectedSubfolder = .decisionTreePathways
+            caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .decisionTreePathways).max(by: { $0.createdAt < $1.createdAt })?.id
+        case .sayDontSay:
+            caseTreeViewModel.selectedSubfolder = .sayDontSay
+            caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .sayDontSay).max(by: { $0.createdAt < $1.createdAt })?.id
         case .history:
             caseTreeViewModel.selectedSubfolder = .history
             caseTreeViewModel.selectedFileId = caseTreeViewModel.files(for: caseFolder.id, subfolder: .history).max(by: { $0.createdAt < $1.createdAt })?.id
-        case .chat, .overview, .recordings, .emails:
+        case .chat, .recordings:
             caseTreeViewModel.selectedFileId = nil
         }
     }
@@ -587,8 +592,18 @@ struct SidebarView: View {
             caseTreeViewModel.selectedWorkspaceSection = .timeline
         case .evidence:
             caseTreeViewModel.selectedWorkspaceSection = .evidence
-        case .documents, .filedDocuments, .response:
+        case .documents, .filedDocuments:
             caseTreeViewModel.selectedWorkspaceSection = .documents
+        case .strategy:
+            caseTreeViewModel.selectedWorkspaceSection = .strategy
+        case .coaching:
+            caseTreeViewModel.selectedWorkspaceSection = .coaching
+        case .response:
+            caseTreeViewModel.selectedWorkspaceSection = .responses
+        case .decisionTreePathways:
+            caseTreeViewModel.selectedWorkspaceSection = .decisionTreePathways
+        case .sayDontSay:
+            caseTreeViewModel.selectedWorkspaceSection = .sayDontSay
         case .history:
             caseTreeViewModel.selectedWorkspaceSection = .history
         case .recordings:

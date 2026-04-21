@@ -83,7 +83,11 @@ enum ChatCaseIntentRouter {
 
     static func inferSubfolder(lower: String, hasAttachments: Bool) -> CaseSubfolder {
         if lower.contains("timeline") || lower.contains("chronolog") { return .timeline }
-        if lower.contains("strategy") || (lower.contains("response") && !lower.contains("research")) { return .response }
+        if lower.contains("say / don't say") || lower.contains("say/don't say") || lower.contains("dont say") || lower.contains("don't say") { return .sayDontSay }
+        if lower.contains("decision tree") || lower.contains("pathway") || lower.contains("pathways") { return .decisionTreePathways }
+        if lower.contains("coaching") || lower.contains("coach me") { return .coaching }
+        if lower.contains("strategy") { return .strategy }
+        if lower.contains("response") && !lower.contains("research") { return .response }
         if lower.contains("research") || lower.contains("finding") { return .history }
         if lower.contains("document") || lower.contains("filing") || lower.contains("draft doc") { return .documents }
         if lower.contains("evidence") || lower.contains("proof") || lower.contains("photo") || lower.contains("pic")
@@ -234,7 +238,7 @@ enum ChatCaseIntentRouter {
                 case .timeline:
                     return lower.contains("task") || lower.contains("todo") || lower.contains("to-do") ? .createTask : .addToTimeline
                 case .evidence: return .addToEvidence
-                case .response: return .addToStrategy
+                case .response, .strategy, .coaching, .decisionTreePathways, .sayDontSay: return .addToStrategy
                 case .history: return lower.contains("research") ? .addToResearch : .addToNotes
                 case .documents: return .addToDocuments
                 default: return .addToCase

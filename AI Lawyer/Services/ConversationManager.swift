@@ -446,18 +446,18 @@ final class ConversationManager: ObservableObject {
             guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 confirmation = "Nothing to save—try adding a short note after your command."
                 addLocalAssistantMessage(confirmation, caseId: caseId)
-                return AppliedCaseUpdate(caseId: caseId, subfolder: .response, fileId: nil, confirmation: confirmation)
+                return AppliedCaseUpdate(caseId: caseId, subfolder: subfolder, fileId: nil, confirmation: confirmation)
             }
             fileId = tree.addVersionedTextArtifact(
                 caseId: caseId,
-                subfolder: .response,
-                baseName: "Strategy Notes",
+                subfolder: subfolder,
+                baseName: tree.folderDisplayName(caseId: caseId, subfolder: subfolder),
                 content: body,
                 responseTag: .strategy,
-                timelineTitle: "Strategy note saved",
+                timelineTitle: "\(tree.folderDisplayName(caseId: caseId, subfolder: subfolder)) updated",
                 timelineSummary: body.prefix(180).description
             )
-            confirmation = "Saved a strategy note in \(title)."
+            confirmation = "Saved in \(tree.folderDisplayName(caseId: caseId, subfolder: subfolder)) for \(title)."
 
         case .addToResearch:
             let body = compositeBody(sourceText: sourceText, attachmentNames: attachmentNames, attachmentContents: attachmentContents)
@@ -1474,7 +1474,7 @@ final class ConversationManager: ObservableObject {
             return .evidence
         case .documents, .filedDocuments:
             return .draft
-        case .response:
+        case .response, .strategy, .coaching, .decisionTreePathways, .sayDontSay:
             return .strategy
         case .history, .timeline:
             return .note

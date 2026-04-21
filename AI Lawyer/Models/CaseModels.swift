@@ -13,6 +13,10 @@ enum CaseSubfolder: String, CaseIterable, Identifiable, Codable {
     case evidence = "Evidence"
     case documents = "Documents"
     case response = "Responses"
+    case strategy = "Strategy"
+    case coaching = "Coaching"
+    case decisionTreePathways = "Decision Tree Pathways"
+    case sayDontSay = "Say / Don't Say"
     case recordings = "Recordings"
     case timeline = "Timeline"
     case history = "History"
@@ -23,15 +27,16 @@ enum CaseSubfolder: String, CaseIterable, Identifiable, Codable {
 
 /// Case-centric workspace navigation (replaces folder grouping in the sidebar).
 enum CaseWorkspaceSection: String, CaseIterable, Identifiable {
-    case overview = "Overview"
     case timeline = "Timeline"
     case chat = "Chat"
-    case recordings = "Recordings"
     case evidence = "Evidence"
     case documents = "Documents"
-    case emails = "Emails"
-    case deadlines = "Deadlines"
-    case tasks = "Tasks"
+    case strategy = "Strategy"
+    case coaching = "Coaching"
+    case responses = "Responses"
+    case decisionTreePathways = "Decision Tree Pathways"
+    case sayDontSay = "Say / Don't Say"
+    case recordings = "Recordings"
     case history = "History"
 
     var id: String { rawValue }
@@ -41,6 +46,11 @@ enum CaseWorkspaceSection: String, CaseIterable, Identifiable {
         switch self {
         case .evidence: return .evidence
         case .documents: return .documents
+        case .strategy: return .strategy
+        case .coaching: return .coaching
+        case .responses: return .response
+        case .decisionTreePathways: return .decisionTreePathways
+        case .sayDontSay: return .sayDontSay
         case .history: return .history
         default: return nil
         }
@@ -187,7 +197,7 @@ struct CaseFolder: Identifiable, Codable {
          category: CaseCategory,
          subfolders: [CaseSubfolder: [CaseFile]] = [:],
          customFolderNames: [CaseSubfolder: String] = [:],
-         hiddenSubfolders: [CaseSubfolder] = [.response, .recordings, .history, .filedDocuments],
+         hiddenSubfolders: [CaseSubfolder] = [.recordings, .history, .filedDocuments],
          emailDrafts: [EmailDraft] = [],
          deadlines: [LegalDeadline] = [],
          courtCaseNumber: String? = nil) {
@@ -216,9 +226,13 @@ struct CaseFolder: Identifiable, Codable {
         id = try c.decode(UUID.self, forKey: .id)
         title = try c.decode(String.self, forKey: .title)
         category = try c.decode(CaseCategory.self, forKey: .category)
-        subfolders = try c.decode([CaseSubfolder: [CaseFile]].self, forKey: .subfolders)
+        let decodedSubfolders = try c.decode([CaseSubfolder: [CaseFile]].self, forKey: .subfolders)
+        var normalizedSubfolders: [CaseSubfolder: [CaseFile]] = [:]
+        CaseSubfolder.allCases.forEach { normalizedSubfolders[$0] = [] }
+        decodedSubfolders.forEach { normalizedSubfolders[$0] = $1 }
+        subfolders = normalizedSubfolders
         customFolderNames = try c.decode([CaseSubfolder: String].self, forKey: .customFolderNames)
-        hiddenSubfolders = try c.decodeIfPresent([CaseSubfolder].self, forKey: .hiddenSubfolders) ?? [.response, .recordings, .history, .filedDocuments]
+        hiddenSubfolders = try c.decodeIfPresent([CaseSubfolder].self, forKey: .hiddenSubfolders) ?? [.recordings, .history, .filedDocuments]
         emailDrafts = try c.decodeIfPresent([EmailDraft].self, forKey: .emailDrafts) ?? []
         deadlines = try c.decodeIfPresent([LegalDeadline].self, forKey: .deadlines) ?? []
         courtCaseNumber = try c.decodeIfPresent(String.self, forKey: .courtCaseNumber)

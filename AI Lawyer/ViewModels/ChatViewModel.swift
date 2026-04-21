@@ -285,8 +285,12 @@ final class ChatViewModel: ObservableObject {
             case .timeline: return .timeline
             case .documents, .filedDocuments: return .documents
             case .evidence: return .evidence
+            case .strategy: return .strategy
+            case .coaching: return .coaching
+            case .decisionTreePathways: return .decisionTreePathways
+            case .sayDontSay: return .sayDontSay
             case .history: return .history
-            case .response: return .chat
+            case .response: return .responses
             case .recordings: return .recordings
             }
         }()

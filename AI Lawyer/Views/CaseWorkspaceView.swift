@@ -39,52 +39,11 @@ struct CaseWorkspaceView: View {
                                 if selectedSection == .chat {
                                     chatCard()
                                         .id("chat")
-                                } else if let analysis = state.analysis, selectedSection == .overview {
-                                    if let action = nextAction {
-                                        nextActionCard(action)
-                                    }
-
-                                    Group {
-                                        if let brief = CaseBriefStore.shared.brief(for: state.caseId) {
-                                            CaseBriefCardView(brief: brief)
-                                        } else {
-                                            CaseBriefView(analysis: analysis)
-                                        }
-                                    }
-                                    .id("brief")
-
-                                    CaseProgressView(progress: CaseProgressStore.shared.progress(for: state.caseId))
-                                        .id("progress")
-
-                                    SuggestedActionsCardView(
-                                        analysis: analysis,
-                                        onSuggestedAction: { section in
-                                            caseTreeViewModel.selectedWorkspaceSection = section
-                                            if let sub = section.documentSubfolder {
-                                                caseTreeViewModel.selectedSubfolder = sub
-                                            }
-                                            withAnimation(.easeInOut(duration: 0.25)) {
-                                                proxy.scrollTo(sectionAnchor(for: section), anchor: .top)
-                                            }
-                                        }
-                                    )
-                                    .id("actions")
-
-                                    EvidenceAlertsView(alerts: state.evidenceAlerts)
-                                    LegalArgumentsView(arguments: state.legalArguments)
-                                    timelineCard(caseId: state.caseId)
-                                        .id("timeline")
-                                    evidenceCard(caseId: state.caseId)
-                                        .id("evidence")
-                                    chatCard()
-                                        .id("chat")
-                                } else if let analysis = state.analysis {
-                                    focusedSectionCard(caseId: state.caseId, analysis: analysis)
+                                } else {
+                                    focusedSectionCard(caseId: state.caseId)
                                     sectionNotesCard(caseId: state.caseId)
                                     chatCard()
                                         .id("chat")
-                                } else {
-                                    blankSectionWorkspace(caseId: state.caseId)
                                 }
 
                                 Color.clear
@@ -209,7 +168,7 @@ struct CaseWorkspaceView: View {
 
     private func blankSectionWorkspace(caseId: UUID) -> some View {
         VStack(alignment: .leading, spacing: LuxuryTheme.workspaceCardSpacing) {
-            if selectedSection == .overview || selectedSection == .chat {
+            if selectedSection == .chat {
                 chatCard()
             } else {
                 blankSectionCard(title: selectedSection.rawValue)
@@ -223,8 +182,9 @@ struct CaseWorkspaceView: View {
     private func blankSectionCard(title: String) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             WorkspaceCardHeader(icon: "◻︎", title: title)
-            Color.clear
-                .frame(maxWidth: .infinity, minHeight: 180)
+            Text("Nothing here yet. Use chat to add the first item to this section.")
+                .pocketSecondaryMonospaced(size: 13)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(LuxuryTheme.workspaceCardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -438,7 +398,8 @@ struct CaseWorkspaceView: View {
 
     private func sectionAnchor(for section: CaseWorkspaceSection) -> String {
         switch section {
-        case .evidence, .documents, .history: return "evidence"
+        case .evidence, .documents, .strategy, .coaching, .responses, .decisionTreePathways, .sayDontSay, .history:
+            return "evidence"
         case .timeline: return "timeline"
         case .chat: return "chat"
         default: return "actions"
@@ -626,33 +587,33 @@ struct CaseWorkspaceView: View {
         }
     }
 
-    private func focusedSectionCard(caseId: UUID, analysis: CaseAnalysis) -> some View {
+    private func focusedSectionCard(caseId: UUID) -> some View {
         Group {
             switch selectedSection {
-            case .timeline, .tasks, .deadlines:
+            case .timeline:
                 timelineCard(caseId: caseId)
             case .evidence:
                 evidenceCard(caseId: caseId)
             case .documents:
                 documentsCard(caseId: caseId)
+            case .strategy:
+                artifactSectionCard(caseId: caseId, subfolder: .strategy, icon: "🧭", title: "Strategy", emptyState: "Strategy notes and case-building guidance will appear here.")
+            case .coaching:
+                artifactSectionCard(caseId: caseId, subfolder: .coaching, icon: "🗣️", title: "Coaching", emptyState: "Practical coaching guidance will stay here as the chat develops.")
+            case .responses:
+                artifactSectionCard(caseId: caseId, subfolder: .response, icon: "↩︎", title: "Responses", emptyState: "Opponent, agency, insurance, or court responses will collect here.")
+            case .decisionTreePathways:
+                artifactSectionCard(caseId: caseId, subfolder: .decisionTreePathways, icon: "🛤️", title: "Decision Tree Pathways", emptyState: "Alternative paths and next-step routes will appear here.")
+            case .sayDontSay:
+                artifactSectionCard(caseId: caseId, subfolder: .sayDontSay, icon: "💬", title: "Say / Don’t Say", emptyState: "Communication guidance and pitfalls will stay here.")
+            case .history:
+                artifactSectionCard(caseId: caseId, subfolder: .history, icon: "📝", title: "History", emptyState: "Short case notes and summaries will appear here.")
+            case .recordings:
+                artifactSectionCard(caseId: caseId, subfolder: .recordings, icon: "🎙️", title: "Recordings", emptyState: "Voice notes and recordings will appear here.")
             case .chat:
                 EmptyView()
-            default:
-                caseSummaryCard(analysis: analysis)
             }
         }
-    }
-
-    private func caseSummaryCard(analysis: CaseAnalysis) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            WorkspaceCardHeader(icon: "📌", title: selectedSection.rawValue)
-            Text(analysis.summary.isEmpty ? "Open a case element from the sidebar to focus the workspace." : analysis.summary)
-                .font(LuxuryTheme.bodyFont(size: 15))
-                .foregroundColor(AppColors.textPrimary)
-        }
-        .padding(LuxuryTheme.workspaceCardPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .luxuryCard()
     }
 
     private func documentsCard(caseId: UUID) -> some View {
@@ -663,12 +624,10 @@ struct CaseWorkspaceView: View {
                 Text("No documents yet for this case element.")
                     .pocketSecondaryMonospaced(size: 14)
             } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(files.prefix(10)) { file in
-                        Text(file.name)
-                            .pocketSecondaryMonospaced(size: 14)
-                    }
-                }
+                artifactFileList(caseId: caseId, subfolder: .documents, files: files)
+            }
+            if let selected = selectedArtifactFile(caseId: caseId, subfolder: .documents) {
+                artifactPreviewCard(selected)
             }
         }
         .padding(LuxuryTheme.workspaceCardPadding)
@@ -696,7 +655,7 @@ struct CaseWorkspaceView: View {
 
     private func sectionScopedMessages(for caseId: UUID?) -> [Message] {
         guard let caseId else { return chatViewModel.messages.filter { $0.caseId == nil } }
-        if selectedSection == .overview || selectedSection == .chat {
+        if selectedSection == .chat {
             return chatViewModel.messages.filter { $0.caseId == caseId }
         }
         if let selectedFileId = caseTreeViewModel.selectedFileId {
@@ -720,7 +679,7 @@ struct CaseWorkspaceView: View {
     }
 
     private func persistSectionNotesIfNeeded() {
-        guard selectedSection != .overview, selectedSection != .chat else { return }
+        guard selectedSection != .chat else { return }
         guard let caseId = workspace.selectedCaseId ?? caseTreeViewModel.selectedCase?.id else { return }
         let summary = sectionNotesSummary(for: caseId)
         guard !summary.isEmpty else { return }
@@ -973,6 +932,105 @@ struct CaseWorkspaceView: View {
                     nextActionLoading = false
                 }
             }
+        }
+    }
+
+    private func artifactSectionCard(
+        caseId: UUID,
+        subfolder: CaseSubfolder,
+        icon: String,
+        title: String,
+        emptyState: String
+    ) -> some View {
+        let files = caseTreeViewModel.files(for: caseId, subfolder: subfolder)
+        return VStack(alignment: .leading, spacing: 16) {
+            WorkspaceCardHeader(icon: icon, title: title)
+            if files.isEmpty {
+                Text(emptyState)
+                    .pocketSecondaryMonospaced(size: 13)
+            } else {
+                artifactFileList(caseId: caseId, subfolder: subfolder, files: files)
+            }
+            if let selected = selectedArtifactFile(caseId: caseId, subfolder: subfolder) {
+                artifactPreviewCard(selected)
+            }
+        }
+        .padding(LuxuryTheme.workspaceCardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .luxuryCard()
+    }
+
+    private func artifactFileList(caseId: UUID, subfolder: CaseSubfolder, files: [CaseFile]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(files.prefix(8)) { file in
+                Button {
+                    caseTreeViewModel.selectedSubfolder = subfolder
+                    caseTreeViewModel.selectedFileId = file.id
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: iconName(for: file.type))
+                            .font(AppTypography.body)
+                            .foregroundStyle(AppColors.primary)
+                            .frame(width: 18)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(file.name)
+                                .pocketSecondaryMonospaced(size: 14)
+                                .lineLimit(1)
+                            Text(file.createdAt, style: .date)
+                                .pocketSecondaryMonospaced(size: 11)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(LuxuryTheme.surfaceCard)
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(LuxuryTheme.cardBorder, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            if files.count > 8 {
+                Text("+ \(files.count - 8) more")
+                    .pocketSecondaryMonospaced(size: 12)
+                    .padding(.top, 2)
+            }
+        }
+    }
+
+    private func selectedArtifactFile(caseId: UUID, subfolder: CaseSubfolder) -> CaseFile? {
+        guard caseTreeViewModel.selectedSubfolder == subfolder, let fileId = caseTreeViewModel.selectedFileId else { return nil }
+        return caseTreeViewModel.file(for: caseId, subfolder: subfolder, fileId: fileId)
+    }
+
+    private func artifactPreviewCard(_ file: CaseFile) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(file.name)
+                .font(LuxuryTheme.sectionFont(size: 15))
+                .foregroundColor(AppColors.textPrimary)
+            Text(file.content?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? file.content! : "This item is saved in the case and ready to open or export.")
+                .pocketSecondaryMonospaced(size: 13)
+                .foregroundColor(AppColors.textPrimary)
+                .lineLimit(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .background(LuxuryTheme.surfaceCard)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(LuxuryTheme.cardBorder, lineWidth: 1)
+        )
+    }
+
+    private func iconName(for type: CaseFileType) -> String {
+        switch type {
+        case .image: return "photo"
+        case .pdf: return "doc.richtext"
+        case .audio: return "waveform"
+        case .docx, .note, .other: return "doc.text"
         }
     }
 }
