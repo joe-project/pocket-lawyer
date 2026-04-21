@@ -781,6 +781,10 @@ final class ConversationManager: ObservableObject {
                 jsonText = String(jsonText[..<fence.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
+        if let firstBrace = jsonText.firstIndex(of: "{"),
+           let lastBrace = jsonText.lastIndex(of: "}") {
+            jsonText = String(jsonText[firstBrace...lastBrace]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         return jsonText.isEmpty ? nil : jsonText
     }
 
@@ -1439,6 +1443,7 @@ final class ConversationManager: ObservableObject {
         let messagesSnapshot = previousMessages
         let engineForNetwork = aiEngine
         let caseContext = caseId.map(buildAutonomousCaseContext(for:))
+        let wantsStructuredOutput = caseId != nil
         return await Task.detached {
             do {
                 let (response, _, _) = try await engineForNetwork.chat(
@@ -1446,11 +1451,28 @@ final class ConversationManager: ObservableObject {
                     previousMessages: messagesSnapshot,
                     systemPrompt: prompt,
                     caseContext: caseContext,
-                    appendStructuredOutput: caseId != nil
+                    appendStructuredOutput: wantsStructuredOutput
                 )
                 return GuidedReplyResult.success(response)
             } catch {
-                return GuidedReplyResult.failure(error)
+                guard wantsStructuredOutput else {
+                    return GuidedReplyResult.failure(error)
+                }
+
+                print("Structured guided chat failed, retrying without autonomous envelope:", error.localizedDescription)
+
+                do {
+                    let (fallbackResponse, _, _) = try await engineForNetwork.chat(
+                        messages: [chatMessage],
+                        previousMessages: messagesSnapshot,
+                        systemPrompt: prompt,
+                        caseContext: nil,
+                        appendStructuredOutput: false
+                    )
+                    return GuidedReplyResult.success(fallbackResponse)
+                } catch {
+                    return GuidedReplyResult.failure(error)
+                }
             }
         }.value
     }
