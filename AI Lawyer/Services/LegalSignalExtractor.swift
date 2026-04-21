@@ -190,28 +190,65 @@ struct LegalSignalExtractor {
     }
 
     private func defaultFollowUpQuestions(for caseType: String?, lowerText: String, jurisdiction: String?) -> [FollowUpQuestion] {
+        let hasTimeline = ["month", "months", "week", "weeks", "day", "days", "since", "for ", "today", "yesterday", "three months"].contains(where: lowerText.contains)
+        let hasWrittenNotice = ["email", "emailed", "text", "texts", "message", "messages", "called", "notice", "wrote", "letter"].contains(where: lowerText.contains)
+        let hasLease = ["lease", "rental agreement", "tenant", "rent"].contains(where: lowerText.contains)
+        let hasDamageDetail = ["damages", "mold", "flood", "injury", "medical", "cost", "hotel", "missed work", "couldn't use"].contains(where: lowerText.contains)
+        let hasCourtPosture = ["served", "hearing", "court", "petition", "order", "filed"].contains(where: lowerText.contains)
+        let hasEmploymentActor = ["boss", "manager", "hr", "supervisor", "company", "employer"].contains(where: lowerText.contains)
+
         switch caseType {
         case "landlord_tenant":
-            return [
-                FollowUpQuestion(text: lowerText.contains("landlord") ? "What happened first, and when did it start?" : "What happened first?", priority: 10, reason: "Need the opening timeline"),
-                FollowUpQuestion(text: "Do you have the lease and written notice to the landlord?", priority: 9, reason: "Need the strongest supporting documents"),
-                FollowUpQuestion(text: jurisdiction == nil ? "What city and state is the property in?" : "Has the landlord responded or fixed anything yet?", priority: 8, reason: "Need venue or response facts")
-            ]
+            var questions: [FollowUpQuestion] = []
+            if jurisdiction == nil {
+                questions.append(FollowUpQuestion(text: "What city and state is the property in?", priority: 10, reason: "Need jurisdiction for the next step"))
+            }
+            if !hasTimeline {
+                questions.append(FollowUpQuestion(text: "How long has the repair problem been going on?", priority: 9, reason: "Need the repair timeline"))
+            }
+            if !hasWrittenNotice {
+                questions.append(FollowUpQuestion(text: "Do you have emails, texts, or any written notice to the landlord about it?", priority: 8, reason: "Need notice proof"))
+            }
+            if !hasLease {
+                questions.append(FollowUpQuestion(text: "Are you on a lease, and are you current on rent?", priority: 7, reason: "Need contract and leverage facts"))
+            }
+            if !hasDamageDetail {
+                questions.append(FollowUpQuestion(text: "Has this caused costs, health issues, or left you without a working bathroom?", priority: 6, reason: "Need damages and pressure points"))
+            }
+            return questions
         case "employment":
-            return [
-                FollowUpQuestion(text: "Who made the decision or took the action against you?", priority: 10),
-                FollowUpQuestion(text: "Do you have emails, write-ups, or pay records?", priority: 9)
-            ]
+            var questions: [FollowUpQuestion] = []
+            if !hasEmploymentActor {
+                questions.append(FollowUpQuestion(text: "Who made the decision or took the action against you?", priority: 10))
+            }
+            if !hasWrittenNotice {
+                questions.append(FollowUpQuestion(text: "Do you have emails, write-ups, texts, or pay records tied to it?", priority: 9))
+            }
+            if jurisdiction == nil {
+                questions.append(FollowUpQuestion(text: "What state did this happen in?", priority: 8))
+            }
+            return questions
         case "protection_order":
-            return [
-                FollowUpQuestion(text: "What court is it in, and were you served yet?", priority: 10),
-                FollowUpQuestion(text: "Do you have the petition, hearing date, and proof of service?", priority: 9)
-            ]
+            var questions: [FollowUpQuestion] = []
+            if !hasCourtPosture {
+                questions.append(FollowUpQuestion(text: "What court is it in, and have you been served yet?", priority: 10))
+            }
+            if !hasWrittenNotice {
+                questions.append(FollowUpQuestion(text: "Do you have the petition, hearing notice, or proof of service?", priority: 9))
+            }
+            return questions
         default:
-            return [
-                FollowUpQuestion(text: "Start with the moment it began. What happened first?", priority: 10),
-                FollowUpQuestion(text: "What documents, photos, or messages do you already have?", priority: 9)
-            ]
+            var questions: [FollowUpQuestion] = []
+            if !hasTimeline {
+                questions.append(FollowUpQuestion(text: "What happened first, and about when did it start?", priority: 10))
+            }
+            if !hasWrittenNotice {
+                questions.append(FollowUpQuestion(text: "What documents, photos, texts, or emails do you already have?", priority: 9))
+            }
+            if jurisdiction == nil {
+                questions.append(FollowUpQuestion(text: "What state is this happening in?", priority: 8))
+            }
+            return questions
         }
     }
 }

@@ -5,7 +5,7 @@ struct ConversationPlanner {
         payload: CaseUpdatePayload,
         userMessageCount: Int
     ) -> ConversationPlan {
-        let questions = Array(payload.followUpQuestions.sorted { $0.priority > $1.priority }.prefix(3))
+        let questions = Array(payload.followUpQuestions.sorted { $0.priority > $1.priority }.prefix(1))
         let lead: String?
 
         if userMessageCount <= 1 {
@@ -29,24 +29,24 @@ struct ConversationPlanner {
     private func openingLead(for caseType: String?) -> String {
         switch caseType {
         case "landlord_tenant":
-            return "Got it. Let’s pin down the facts first so we can build this cleanly."
+            return "This already points to a habitability and repair-notice issue."
         case "protection_order":
-            return "Okay. Before strategy, I want to make sure we know the court posture and service status."
+            return "This sounds like a protective-order matter, so court posture matters right away."
         case "employment":
-            return "Understood. Let’s get the core facts straight before we decide the path."
+            return "This already sounds like an employment claim path."
         default:
-            return "Got it. Let’s build this step by step."
+            return "I see the legal issue taking shape."
         }
     }
 
     private func followUpLead(for caseType: String) -> String {
         switch caseType {
         case "landlord_tenant":
-            return "That helps. I’m sorting the timeline and evidence in the background."
+            return "That helps. The notice trail and timeline matter most here."
         case "protection_order":
-            return "That helps. I’m tracking the filing posture and what documents we still need."
+            return "That helps. I’m tracking service, hearing posture, and the filing record."
         default:
-            return "That helps. I’m organizing the case around what you’ve told me."
+            return "That helps. I’m tightening the case around what’s already supported."
         }
     }
 }

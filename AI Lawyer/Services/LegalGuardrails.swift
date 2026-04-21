@@ -11,17 +11,12 @@ enum LegalGuardrails {
     /// Disclaimer to append when the AI provides legal information. Shown to users so they understand the system is not a substitute for a licensed attorney.
     static let legalDisclaimer = "This system provides legal information and case organization tools, not formal legal advice. For legal advice specific to your situation, consult a licensed attorney."
 
-    /// Applies guardrails to an AI response: appends the standard legal disclaimer when appropriate so every user-facing response includes it. Call this on every AI response before displaying to the user.
+    /// Applies lightweight guardrails to an AI response without forcing repetitive visible disclaimers into normal chat.
     /// - Parameter response: Raw assistant response text.
-    /// - Returns: The same response with the disclaimer appended (once) if it was not already present.
+    /// - Returns: Trimmed response text.
     static func applyGuardrails(to response: String) -> String {
         let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return response }
-        if trimmed.localizedCaseInsensitiveContains(legalDisclaimer) {
-            return response
-        }
-        return response.trimmingCharacters(in: .whitespacesAndNewlines)
-            + "\n\n"
-            + legalDisclaimer
+        return trimmed
     }
 }

@@ -673,8 +673,8 @@ final class ConversationManager: ObservableObject {
 
     private func responseDelayNanoseconds(for text: String) -> UInt64 {
         let trimmedCount = text.trimmingCharacters(in: .whitespacesAndNewlines).count
-        let base: UInt64 = 1_600_000_000
-        let extra = min(UInt64(trimmedCount) * 4_000_000, 1_100_000_000)
+        let base: UInt64 = 180_000_000
+        let extra = min(UInt64(trimmedCount) * 1_000_000, 220_000_000)
         return base + extra
     }
 
@@ -687,6 +687,86 @@ final class ConversationManager: ObservableObject {
             guard msg.role == "user" else { return false }
             return msg.content.trimmingCharacters(in: .whitespacesAndNewlines).count >= 30
         }.count
+    }
+
+    private func combinedKnownFactsText(caseId: UUID?, latestUserMessage: String) -> String {
+        var parts: [String] = [latestUserMessage]
+
+        if let caseId {
+            let recent = messagesForCase(caseId: caseId)
+                .suffix(10)
+                .map(\.content)
+                .joined(separator: "\n")
+            let memory = CaseMemoryStore.shared.memoryOrEmpty(for: caseId)
+            let analysis = caseManager?.getCase(byId: caseId)?.analysis
+
+            parts.append(recent)
+            parts.append(memory.people.joined(separator: "\n"))
+            parts.append(memory.events.joined(separator: "\n"))
+            parts.append(memory.evidence.joined(separator: "\n"))
+            parts.append(memory.claims.joined(separator: "\n"))
+            if let damages = memory.damagesEstimate { parts.append(damages) }
+            if let analysis {
+                parts.append(analysis.summary)
+                parts.append(analysis.claims.joined(separator: "\n"))
+                parts.append(analysis.timeline.map(\.description).joined(separator: "\n"))
+                parts.append(analysis.evidenceNeeded.joined(separator: "\n"))
+                parts.append(analysis.documents.joined(separator: "\n"))
+                parts.append(analysis.filingLocations.joined(separator: "\n"))
+            }
+        }
+
+        return parts.joined(separator: "\n").lowercased()
+    }
+
+    private func containsAny(_ text: String, _ needles: [String]) -> Bool {
+        needles.contains { text.contains($0) }
+    }
+
+    private func questionIsAlreadyAnswered(_ question: FollowUpQuestion, knownText: String) -> Bool {
+        let q = question.text.lowercased()
+
+        if q.contains("city and state") || q.contains("state is this") || q.contains("property in") {
+            return containsAny(knownText, ["texas", "california", "florida", "new york", "illinois", "georgia", "ohio"])
+        }
+        if q.contains("how long") || q.contains("when did it start") || q.contains("what happened first") || q.contains("about when") {
+            return containsAny(knownText, ["day", "days", "week", "weeks", "month", "months", "year", "years", "since", "yesterday", "today"])
+        }
+        if q.contains("lease") || q.contains("current on rent") {
+            return containsAny(knownText, ["lease", "rental agreement", "rent", "tenant"])
+        }
+        if q.contains("emails") || q.contains("texts") || q.contains("written notice") || q.contains("messages") || q.contains("write-ups") || q.contains("pay records") {
+            return containsAny(knownText, ["email", "emails", "text", "texts", "message", "messages", "notice", "letter", "write-up", "writeups", "pay records", "pay stub"])
+        }
+        if q.contains("costs") || q.contains("health issues") || q.contains("working bathroom") {
+            return containsAny(knownText, ["cost", "costs", "hotel", "medical", "health", "bathroom", "couldn't use", "could not use", "injury", "damage"])
+        }
+        if q.contains("served") || q.contains("court is it in") || q.contains("petition") || q.contains("hearing notice") || q.contains("proof of service") {
+            return containsAny(knownText, ["served", "court", "petition", "hearing", "proof of service", "service"])
+        }
+        if q.contains("who made the decision") || q.contains("took the action against you") {
+            return containsAny(knownText, ["boss", "manager", "hr", "supervisor", "employer", "company"])
+        }
+
+        return false
+    }
+
+    private func unansweredFollowUpQuestions(for caseId: UUID?, latestUserMessage: String, payload: CaseUpdatePayload) -> [FollowUpQuestion] {
+        let knownText = combinedKnownFactsText(caseId: caseId, latestUserMessage: latestUserMessage)
+        return payload.followUpQuestions.filter { !questionIsAlreadyAnswered($0, knownText: knownText) }
+    }
+
+    private func promptGuidanceForMissingFacts(caseId: UUID?, latestUserMessage: String, payload: CaseUpdatePayload) -> String {
+        let remaining = unansweredFollowUpQuestions(for: caseId, latestUserMessage: latestUserMessage, payload: payload)
+        guard let first = remaining.first else {
+            return "Known facts are already sufficient for the next step. Do not ask a clarifying question unless a truly material gap remains."
+        }
+        return """
+        Missing-facts check:
+        - Do not ask about anything already answered in CASE CONTEXT or the latest user message.
+        - If you ask a clarifying question, ask only this materially useful one: \(first.text)
+        - If the answer is already implicit, skip the question and move straight to insight and next action.
+        """
     }
 
     private func buildAutonomousCaseContext(for caseId: UUID) -> String {
@@ -1325,7 +1405,8 @@ final class ConversationManager: ObservableObject {
 
         let request = requestForStage(
             stage(for: caseId),
-            latestUserMessage: effectiveUserContent(for: last)
+            latestUserMessage: effectiveUserContent(for: last),
+            caseId: caseId
         )
         let result = await runGuidedChatRequest(
             prompt: request.prompt,
@@ -1448,12 +1529,17 @@ final class ConversationManager: ObservableObject {
         let payload = legalSignalExtractor.extract(from: userText)
         let turnCount = caseId.map(substantiveUserTurnCount(for:)) ?? 1
         let plan = conversationPlanner.makePlan(payload: payload, userMessageCount: turnCount)
+        let unanswered = unansweredFollowUpQuestions(for: caseId, latestUserMessage: userText, payload: payload)
 
         let normalized = userText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let isDirect = isDirectLegalQuestion(userText)
             || normalized.contains("i want to sue")
             || normalized.contains("where do i file")
             || normalized.contains("what court")
+        let mentionsEvidence = containsAny(
+            normalized,
+            ["screenshot", "screenshots", "email", "emails", "text", "texts", "recording", "recorded", "photo", "photos", "notice", "document", "bank statement"]
+        )
 
         if isDirect {
             let overview = payload.caseType.map { "This looks most like a \($0.lowercased()) issue." }
@@ -1462,7 +1548,7 @@ final class ConversationManager: ObservableObject {
             let evidence = payload.evidenceItems.prefix(3).map(\.title)
 
             var lines: [String] = [overview]
-            lines.append("Start by preserving every text, email, notice, photo, receipt, or report tied to what happened.")
+            lines.append("Start by pulling together the strongest proof and the filing basics before you take action.")
             if !documents.isEmpty {
                 lines.append("Main documents to gather next: \(documents.joined(separator: ", ")).")
             } else if !evidence.isEmpty {
@@ -1474,15 +1560,19 @@ final class ConversationManager: ObservableObject {
 
         let lead = plan.summaryLead ?? "I’m still tracking this with you."
         let evidenceHint = payload.evidenceItems.first?.title ?? payload.documentRequirements.first?.title
-        let nextQuestion = plan.nextQuestions.first?.text ?? "What happened first, and what proof do you already have?"
+        let nextQuestion = unanswered.first?.text
 
         var lines: [String] = [lead]
-        if let evidenceHint, !evidenceHint.isEmpty {
-            lines.append("For now, preserve anything tied to this, especially \(evidenceHint.lowercased()).")
-        } else {
-            lines.append("For now, preserve any texts, emails, notices, photos, or receipts tied to this.")
+        if mentionsEvidence, let evidenceHint, !evidenceHint.isEmpty {
+            lines.append("That evidence can matter a lot here, especially \(evidenceHint.lowercased()). I can help analyze or add it to the case.")
+        } else if let evidenceHint, !evidenceHint.isEmpty, turnCount >= 2 {
+            lines.append("One thing that would strengthen this quickly is \(evidenceHint.lowercased()).")
         }
-        lines.append(nextQuestion)
+        if let nextQuestion {
+            lines.append(nextQuestion)
+        } else {
+            lines.append("If you want, I can turn this into a strategy, evidence list, or next-step plan.")
+        }
         return lines.joined(separator: " ")
     }
 
@@ -1545,9 +1635,12 @@ final class ConversationManager: ObservableObject {
 
     private func requestForStage(
         _ stage: GuidedCaseStage,
-        latestUserMessage: String
+        latestUserMessage: String,
+        caseId: UUID?
     ) -> (prompt: String, userText: String, targetSubfolder: CaseSubfolder, nextStage: GuidedCaseStage) {
         let directAnswerMode = isDirectLegalQuestion(latestUserMessage)
+        let payload = legalSignalExtractor.extract(from: latestUserMessage)
+        let missingFactsGuidance = promptGuidanceForMissingFacts(caseId: caseId, latestUserMessage: latestUserMessage, payload: payload)
         let directAnswerAddition = """
 
         Direct-question fast mode: answer immediately—no intake loop. Use numbered sections:
@@ -1564,6 +1657,7 @@ final class ConversationManager: ObservableObject {
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
                 \(directAnswerAddition)
+                \(missingFactsGuidance)
 
                 Be specific and efficient. Populate SYSTEM DATA with any claims, evidence, timeline_events, and documents_to_generate implied by the question.
                 """,
@@ -1578,11 +1672,12 @@ final class ConversationManager: ObservableObject {
             return (
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
+                \(missingFactsGuidance)
 
                 Stage: initial case intake.
                 Use CASE CONTEXT; do not re-ask what is already captured there.
-                Acknowledge what is new, name the most important legal angles so far, and ask at most one sharp follow-up unless a critical gap remains.
-                Deliver at least one concrete insight (claim direction, risk, or document to preserve) every turn.
+                Acknowledge what is new, name the most important legal angle so far, and ask at most one sharp follow-up only if a critical gap remains.
+                Deliver one concrete insight every turn.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -1592,10 +1687,11 @@ final class ConversationManager: ObservableObject {
             return (
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
+                \(missingFactsGuidance)
 
                 Stage: continue fact gathering.
                 Tie answers to CASE CONTEXT; never repeat prior questions.
-                Ask one follow-up only if a material gap remains; otherwise advance to likely claims, proof plan, or next filings.
+                Ask one follow-up only if a material gap remains; otherwise advance to likely claims, proof plan, evidence significance, or next filings.
                 """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
@@ -1605,9 +1701,10 @@ final class ConversationManager: ObservableObject {
             return (
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
+                \(missingFactsGuidance)
 
                 Stage: deepen the record efficiently.
-                Prefer summarizing what the case file now supports and listing the next proof or procedural step over more generic Q&A.
+                Prefer summarizing what the case file now supports and listing the next proof or procedural step over generic Q&A.
                 At most one follow-up if something essential is still missing.
                 """,
                 userText: latestUserMessage,
@@ -1618,6 +1715,7 @@ final class ConversationManager: ObservableObject {
             return (
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
+                \(missingFactsGuidance)
 
                 Stage: pivot from intake to action.
                 Offer the next concrete legal move (preserve evidence, demand, agency charge, filing path) and invite a short strategy pass.
@@ -1631,6 +1729,7 @@ final class ConversationManager: ObservableObject {
             return (
                 prompt: """
                 \(AIEngine.guidedCaseChatSystemPrompt)
+                \(missingFactsGuidance)
 
                 The user is in ongoing case Q&A.
                 Answer the user's question briefly and practically in plain language.
@@ -1643,7 +1742,10 @@ final class ConversationManager: ObservableObject {
             )
         case .awaitingStrategyConsent, .awaitingProceedConsent, .awaitingQuestionDecision, .awaitingDocumentConsent, .openQuestionAnswer:
             return (
-                prompt: AIEngine.guidedCaseChatSystemPrompt,
+                prompt: """
+                \(AIEngine.guidedCaseChatSystemPrompt)
+                \(missingFactsGuidance)
+                """,
                 userText: latestUserMessage,
                 targetSubfolder: .history,
                 nextStage: stage
