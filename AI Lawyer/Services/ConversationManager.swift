@@ -1372,7 +1372,18 @@ final class ConversationManager: ObservableObject {
             return visibleResponse
         case .failure(let error):
             print("getAIReply failed:", error)
-            return nil
+            let fallback = localEmergencyReply(for: last.content, caseId: caseId)
+            await pauseBeforeReply(fallback)
+            _ = appendAssistantResponse(
+                fallback,
+                caseId: caseId,
+                baseFileId: fileId,
+                targetSubfolder: targetSubfolder ?? .history
+            )
+            if let caseId {
+                setStage(.awaitingClarificationAnswers, for: caseId)
+            }
+            return fallback
         }
     }
 
@@ -1433,6 +1444,48 @@ final class ConversationManager: ObservableObject {
 
     private typealias GuidedReplyResult = Result<String, Error>
 
+    private func localEmergencyReply(for userText: String, caseId: UUID?) -> String {
+        let payload = legalSignalExtractor.extract(from: userText)
+        let turnCount = caseId.map(substantiveUserTurnCount(for:)) ?? 1
+        let plan = conversationPlanner.makePlan(payload: payload, userMessageCount: turnCount)
+
+        let normalized = userText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let isDirect = isDirectLegalQuestion(userText)
+            || normalized.contains("i want to sue")
+            || normalized.contains("where do i file")
+            || normalized.contains("what court")
+
+        if isDirect {
+            let overview = payload.caseType.map { "This looks most like a \($0.lowercased()) issue." }
+                ?? "This may support a legal claim, but I’d still want a few key facts and documents before treating it as ready to file."
+            let documents = payload.documentRequirements.prefix(3).map(\.title)
+            let evidence = payload.evidenceItems.prefix(3).map(\.title)
+
+            var lines: [String] = [overview]
+            lines.append("Start by preserving every text, email, notice, photo, receipt, or report tied to what happened.")
+            if !documents.isEmpty {
+                lines.append("Main documents to gather next: \(documents.joined(separator: ", ")).")
+            } else if !evidence.isEmpty {
+                lines.append("Main proof to gather next: \(evidence.joined(separator: ", ")).")
+            }
+            lines.append("If you want, I can keep building this case step by step from here.")
+            return lines.joined(separator: " ")
+        }
+
+        let lead = plan.summaryLead ?? "I’m still tracking this with you."
+        let evidenceHint = payload.evidenceItems.first?.title ?? payload.documentRequirements.first?.title
+        let nextQuestion = plan.nextQuestions.first?.text ?? "What happened first, and what proof do you already have?"
+
+        var lines: [String] = [lead]
+        if let evidenceHint, !evidenceHint.isEmpty {
+            lines.append("For now, preserve anything tied to this, especially \(evidenceHint.lowercased()).")
+        } else {
+            lines.append("For now, preserve any texts, emails, notices, photos, or receipts tied to this.")
+        }
+        lines.append(nextQuestion)
+        return lines.joined(separator: " ")
+    }
+
     private func runGuidedChatRequest(
         prompt: String,
         latestUserText: String,
@@ -1471,7 +1524,20 @@ final class ConversationManager: ObservableObject {
                     )
                     return GuidedReplyResult.success(fallbackResponse)
                 } catch {
-                    return GuidedReplyResult.failure(error)
+                    print("Plain guided chat failed, retrying without prior context:", error.localizedDescription)
+
+                    do {
+                        let (lastChanceResponse, _, _) = try await engineForNetwork.chat(
+                            messages: [chatMessage],
+                            previousMessages: nil,
+                            systemPrompt: prompt,
+                            caseContext: nil,
+                            appendStructuredOutput: false
+                        )
+                        return GuidedReplyResult.success(lastChanceResponse)
+                    } catch {
+                        return GuidedReplyResult.failure(error)
+                    }
                 }
             }
         }.value
