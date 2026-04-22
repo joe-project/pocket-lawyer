@@ -114,6 +114,7 @@ struct RootContainerView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .simultaneousGesture(keyboardDismissDragGesture, including: .all)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(isDarkMode ? AppColors.darkBackground : AppColors.lightBackground)
@@ -178,6 +179,9 @@ struct RootContainerView: View {
         DragGesture(minimumDistance: 12)
             .onChanged { value in
                 guard sidebarOffset > -sidebarWidth else { return }
+                let horizontal = abs(value.translation.width)
+                let vertical = abs(value.translation.height)
+                guard horizontal > vertical else { return }
                 guard value.translation.width < 0 else { return }
                 if sidebarDragStartOffset == nil {
                     sidebarDragStartOffset = sidebarOffset
@@ -189,6 +193,12 @@ struct RootContainerView: View {
             }
             .onEnded { value in
                 guard sidebarDragStartOffset != nil else { return }
+                let horizontal = abs(value.translation.width)
+                let vertical = abs(value.translation.height)
+                guard horizontal > vertical else {
+                    sidebarDragStartOffset = nil
+                    return
+                }
                 sidebarDragStartOffset = nil
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
                     if value.translation.width < -60 {
@@ -200,6 +210,20 @@ struct RootContainerView: View {
                     }
                 }
             }
+    }
+
+    private var keyboardDismissDragGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { value in
+                let horizontal = abs(value.translation.width)
+                let vertical = value.translation.height
+                guard vertical > 20, vertical > horizontal else { return }
+                dismissKeyboard()
+            }
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     /// Wider left-edge zone (25% of screen) to open the folder sidebar when it is closed.
