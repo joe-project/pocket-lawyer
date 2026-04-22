@@ -843,7 +843,99 @@ final class ConversationManager: ObservableObject {
         let evidence_detected: [String]
         let timeline_events: [String]
         let documents_to_generate: [String]
+        let strategy_notes: [String]?
+        let coaching_notes: [CoachingPointEnvelope]?
+        let decision_tree_pathways: [DecisionTreePathwayEnvelope]?
+        let say_dont_say: [SayDontSayEnvelope]?
+        let response_analysis: [ResponseAnalysisEnvelope]?
+        let suggested_deliverable: StructuredDeliverableCategory?
         let strategy_trigger: Bool
+    }
+
+    private struct DecisionTreePathwayEnvelope: Decodable {
+        let title: String?
+        let when_to_use: String?
+        let risks: [String]?
+        let expected_next_step: String?
+        let key_evidence_or_documents: [String]?
+
+        enum CodingKeys: String, CodingKey {
+            case title
+            case when_to_use
+            case risks
+            case expected_next_step
+            case key_evidence_or_documents
+            case evidence_documents_most_important
+            case key_documents
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            title = try c.decodeIfPresent(String.self, forKey: .title)
+            when_to_use = try c.decodeIfPresent(String.self, forKey: .when_to_use)
+            risks = try c.decodeIfPresent([String].self, forKey: .risks)
+            expected_next_step = try c.decodeIfPresent(String.self, forKey: .expected_next_step)
+            key_evidence_or_documents =
+                try c.decodeIfPresent([String].self, forKey: .key_evidence_or_documents)
+                ?? c.decodeIfPresent([String].self, forKey: .evidence_documents_most_important)
+                ?? c.decodeIfPresent([String].self, forKey: .key_documents)
+        }
+    }
+
+    private struct CoachingPointEnvelope: Decodable {
+        let conversation_posture: String?
+        let present_facts_cleanly: String?
+        let gather_next: [String]?
+        let stay_on_message: String?
+        let note: String?
+
+        init(from decoder: Decoder) throws {
+            if let single = try? decoder.singleValueContainer(),
+               let text = try? single.decode(String.self) {
+                conversation_posture = text
+                present_facts_cleanly = nil
+                gather_next = nil
+                stay_on_message = nil
+                note = text
+                return
+            }
+
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            conversation_posture = try c.decodeIfPresent(String.self, forKey: .conversation_posture)
+            present_facts_cleanly = try c.decodeIfPresent(String.self, forKey: .present_facts_cleanly)
+            gather_next = try c.decodeIfPresent([String].self, forKey: .gather_next)
+            stay_on_message = try c.decodeIfPresent(String.self, forKey: .stay_on_message)
+            note = try c.decodeIfPresent(String.self, forKey: .note)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case conversation_posture
+            case present_facts_cleanly
+            case gather_next
+            case stay_on_message
+            case note
+        }
+    }
+
+    private struct SayDontSayEnvelope: Decodable {
+        let say: [String]?
+        let dont_say: [String]?
+        let pitfalls: [String]?
+        let negotiation_pitfalls: [String]?
+        let admissions_to_avoid: [String]?
+        let weakening_side_arguments: [String]?
+    }
+
+    private struct ResponseAnalysisEnvelope: Decodable {
+        let source_type: String?
+        let source_party: String?
+        let summary: String?
+        let leverage_points: [String]?
+        let risks: [String]?
+        let recommended_next_moves: [String]?
+        let admitted_points: [String]?
+        let denied_or_contested_points: [String]?
+        let deadline_flags: [String]?
     }
 
     private func jsonStringAfterSystemDataMarker(_ response: String) -> String? {
@@ -897,7 +989,51 @@ final class ConversationManager: ObservableObject {
             documentRequirements: envelope.documents_to_generate.map {
                 DocumentRequirement(title: $0, urgency: .soon, stage: .filing, isTentative: true)
             },
-            strategyNotes: envelope.claims.map { StrategyNote(category: .strength, text: "Potential claim identified: \($0)", isTentative: true) },
+            strategyNotes: (
+                (envelope.strategy_notes ?? []).map { StrategyNote(category: .nextStep, text: $0, isTentative: true) } +
+                envelope.claims.map { StrategyNote(category: .strength, text: "Potential claim identified: \($0)", isTentative: true) }
+            ),
+            coachingPoints: (envelope.coaching_notes ?? []).map {
+                CoachingPoint(
+                    conversationPosture: cleanedText($0.conversation_posture ?? $0.note) ?? "Stay factual, calm, and focused on your strongest point.",
+                    presentFactsCleanly: cleanedText($0.present_facts_cleanly) ?? "Lead with dates, names, and documents before conclusions.",
+                    gatherNext: cleanedItems($0.gather_next),
+                    stayOnMessage: cleanedText($0.stay_on_message) ?? "Keep returning to the main issue, your proof, and the specific outcome you want."
+                )
+            },
+            decisionTreePathways: (envelope.decision_tree_pathways ?? []).map {
+                DecisionTreePathway(
+                    title: cleanedText($0.title) ?? "Case pathway",
+                    whenToUse: cleanedText($0.when_to_use) ?? "Use this path when it best matches your proof and leverage.",
+                    risks: cleanedItems($0.risks),
+                    expectedNextStep: cleanedText($0.expected_next_step) ?? "Confirm the next concrete step and supporting documents.",
+                    keyEvidenceOrDocuments: cleanedItems($0.key_evidence_or_documents)
+                )
+            },
+            sayDontSayGuidance: (envelope.say_dont_say ?? []).map {
+                SayDontSayGuidance(
+                    say: cleanedItems($0.say),
+                    dontSay: cleanedItems($0.dont_say),
+                    pitfalls: cleanedItems($0.pitfalls),
+                    negotiationPitfalls: cleanedItems($0.negotiation_pitfalls),
+                    admissionsToAvoid: cleanedItems($0.admissions_to_avoid),
+                    weakeningSideArguments: cleanedItems($0.weakening_side_arguments)
+                )
+            },
+            responseAnalyses: (envelope.response_analysis ?? []).map {
+                ResponseAnalysis(
+                    sourceType: cleanedText($0.source_type) ?? "Incoming response",
+                    sourceParty: cleanedText($0.source_party),
+                    summary: cleanedText($0.summary) ?? "Response received.",
+                    leveragePoints: cleanedItems($0.leverage_points),
+                    risks: cleanedItems($0.risks),
+                    recommendedNextMoves: cleanedItems($0.recommended_next_moves),
+                    admittedPoints: cleanedItems($0.admitted_points),
+                    deniedOrContestedPoints: cleanedItems($0.denied_or_contested_points),
+                    deadlineFlags: cleanedItems($0.deadline_flags)
+                )
+            },
+            suggestedDeliverable: envelope.suggested_deliverable,
             shouldOfferTimelineUpdate: !envelope.timeline_events.isEmpty,
             shouldOfferEvidenceUpdate: !envelope.evidence_detected.isEmpty,
             shouldOfferDocumentChecklist: !envelope.documents_to_generate.isEmpty,
@@ -961,6 +1097,81 @@ final class ConversationManager: ObservableObject {
         setStage(.awaitingStrategyConsent, for: caseId)
     }
 
+    private func maybeOfferNextDeliverable(
+        caseId: UUID,
+        payload: CaseUpdatePayload,
+        latestUserText: String,
+        userMessageCount: Int,
+        assistantVisible: String
+    ) {
+        guard pendingCaseUpdates[caseId] == nil else { return }
+        let deliverable = bestDeliverableToOffer(payload: payload, latestUserText: latestUserText)
+
+        if let deliverable, deliverable != .strategy {
+            let offer = deliverableOfferText(deliverable, caseId: caseId)
+            if !offer.isEmpty && !assistantVisible.localizedCaseInsensitiveContains(offer) {
+                addLocalAssistantMessage(offer, caseId: caseId)
+            }
+            return
+        }
+
+        maybeOfferAutonomousStrategy(
+            caseId: caseId,
+            payload: payload,
+            latestUserText: latestUserText,
+            userMessageCount: userMessageCount,
+            assistantVisible: assistantVisible
+        )
+    }
+
+    private func bestDeliverableToOffer(payload: CaseUpdatePayload, latestUserText: String = "") -> StructuredDeliverableCategory? {
+        let lower = latestUserText.lowercased()
+        let responseIntent = lower.contains("response letter")
+            || lower.contains("response email")
+            || lower.contains("they responded")
+            || lower.contains("adjuster")
+            || lower.contains("denied")
+            || lower.contains("court order")
+            || lower.contains("agency response")
+            || lower.contains("opposing counsel")
+        if responseIntent { return .responses }
+
+        if let explicit = payload.suggestedDeliverable { return explicit }
+        if !payload.responseAnalyses.isEmpty { return .responses }
+        if !payload.sayDontSayGuidance.isEmpty { return .sayDontSay }
+        if !payload.decisionTreePathways.isEmpty { return .decisionTreePathways }
+        if !payload.coachingPoints.isEmpty { return .coaching }
+        if payload.shouldOfferStrategy || !payload.strategyNotes.isEmpty { return .strategy }
+        if payload.shouldOfferDocumentChecklist || !payload.documentRequirements.isEmpty { return .documents }
+        if payload.shouldOfferEvidenceUpdate || !payload.evidenceItems.isEmpty { return .evidence }
+        if payload.shouldOfferTimelineUpdate || !payload.timelineEvents.isEmpty { return .timeline }
+        return nil
+    }
+
+    private func deliverableOfferText(_ deliverable: StructuredDeliverableCategory, caseId: UUID?) -> String {
+        switch deliverable {
+        case .timeline:
+            return "I can turn this into a timeline if you want."
+        case .evidence:
+            return "I can tighten this into an evidence list and save it in Evidence if you want."
+        case .documents:
+            return "I can build the document checklist and filing prep from this if you want."
+        case .strategy:
+            return ""
+        case .coaching:
+            return "I can build a coaching note for how to handle the next conversation if you want."
+        case .responses:
+            let title = caseId.flatMap { id in
+                caseTreeViewModel?.cases.first(where: { $0.id == id })?.title
+            } ?? "this case"
+            return "I can analyze that response and save it in Responses for \(title) if you want."
+        case .decisionTreePathways:
+            return "I can map your strongest pathways from here if you want."
+        case .sayDontSay:
+            return "I can build a say / don’t say sheet for this if you want."
+        }
+    }
+
     private func enrichAutonomousTriggers(_ payload: inout CaseUpdatePayload, userMessage: Message, caseId: UUID) {
         let text = userMessage.content.lowercased()
 
@@ -990,6 +1201,16 @@ final class ConversationManager: ObservableObject {
                 let desc = userMessage.content.trimmingCharacters(in: .whitespacesAndNewlines)
                 payload.timelineEvents.append(CaseTimelineEvent(date: nil, description: desc))
             }
+        }
+
+        if !payload.responseAnalyses.isEmpty {
+            payload.suggestedDeliverable = .responses
+        } else if !payload.sayDontSayGuidance.isEmpty {
+            payload.suggestedDeliverable = .sayDontSay
+        } else if !payload.decisionTreePathways.isEmpty {
+            payload.suggestedDeliverable = .decisionTreePathways
+        } else if !payload.coachingPoints.isEmpty {
+            payload.suggestedDeliverable = .coaching
         }
 
         let turns = substantiveUserTurnCount(for: caseId)
@@ -1041,6 +1262,18 @@ final class ConversationManager: ObservableObject {
         if payload.shouldOfferTimelineUpdate {
             _ = applyTimelineUpdate(caseId: caseId, sourceText: message.content)
         }
+
+        if !payload.responseAnalyses.isEmpty {
+            _ = caseTreeViewModel?.addVersionedTextArtifact(
+                caseId: caseId,
+                subfolder: .response,
+                baseName: "Incoming Response",
+                content: compositeResponseAnalyses(payload.responseAnalyses),
+                responseTag: .strategy,
+                timelineTitle: "Response saved",
+                timelineSummary: message.content.prefix(180).description
+            )
+        }
     }
 
     private func autoApplyAssistantPayload(_ payload: CaseUpdatePayload, caseId: UUID, userMessageText: String, assistantVisible: String) {
@@ -1057,7 +1290,7 @@ final class ConversationManager: ObservableObject {
         }
 
         let userCount = messagesForCase(caseId: caseId).filter { $0.role == "user" }.count
-        maybeOfferAutonomousStrategy(
+        maybeOfferNextDeliverable(
             caseId: caseId,
             payload: payload,
             latestUserText: userMessageText,
@@ -1111,7 +1344,7 @@ final class ConversationManager: ObservableObject {
             let text = payload.strategyNotes.map { note in
                 "• \(note.category.rawValue): \(note.text)"
             }.joined(separator: "\n")
-            _ = tree.upsertTextFile(caseId: caseId, subfolder: .history, name: "Strategy Notes", content: text)
+            _ = tree.upsertTextFile(caseId: caseId, subfolder: .strategy, name: "Strategy Notes", content: text)
         }
 
         if !payload.filingInstructions.isEmpty {
@@ -1120,6 +1353,143 @@ final class ConversationManager: ObservableObject {
             }.joined(separator: "\n\n")
             _ = tree.upsertTextFile(caseId: caseId, subfolder: .documents, name: "Filing Instructions", content: text)
         }
+
+        if !payload.coachingPoints.isEmpty {
+            _ = tree.upsertTextFile(
+                caseId: caseId,
+                subfolder: .coaching,
+                name: "Coaching Notes",
+                content: payload.coachingPoints.map(formattedCoachingPoint(_:)).joined(separator: "\n\n")
+            )
+        }
+
+        if !payload.decisionTreePathways.isEmpty {
+            _ = tree.upsertTextFile(
+                caseId: caseId,
+                subfolder: .decisionTreePathways,
+                name: "Decision Tree Pathways",
+                content: payload.decisionTreePathways.map(formattedDecisionPathway(_:)).joined(separator: "\n\n")
+            )
+        }
+
+        if !payload.sayDontSayGuidance.isEmpty {
+            _ = tree.upsertTextFile(
+                caseId: caseId,
+                subfolder: .sayDontSay,
+                name: "Say / Don’t Say",
+                content: payload.sayDontSayGuidance.map(formattedSayDontSay(_:)).joined(separator: "\n\n")
+            )
+        }
+
+        if !payload.responseAnalyses.isEmpty {
+            _ = tree.upsertTextFile(
+                caseId: caseId,
+                subfolder: .response,
+                name: "Response Analysis",
+                content: compositeResponseAnalyses(payload.responseAnalyses)
+            )
+        }
+    }
+
+    private func formattedDecisionPathway(_ pathway: DecisionTreePathway) -> String {
+        let risks = pathway.risks.isEmpty ? "• No major risk captured yet." : pathway.risks.map { "• \($0)" }.joined(separator: "\n")
+        let evidence = pathway.keyEvidenceOrDocuments.isEmpty ? "• No key evidence listed yet." : pathway.keyEvidenceOrDocuments.map { "• \($0)" }.joined(separator: "\n")
+        return """
+        \(pathway.title)
+        When to use: \(pathway.whenToUse)
+        Expected next step: \(pathway.expectedNextStep)
+        Risks:
+        \(risks)
+        Evidence / documents that matter most:
+        \(evidence)
+        """
+    }
+
+    private func formattedSayDontSay(_ guidance: SayDontSayGuidance) -> String {
+        let say = guidance.say.isEmpty ? "• No suggested language yet." : guidance.say.map { "• \($0)" }.joined(separator: "\n")
+        let dontSay = guidance.dontSay.isEmpty ? "• No risky language captured yet." : guidance.dontSay.map { "• \($0)" }.joined(separator: "\n")
+        let pitfalls = guidance.pitfalls.isEmpty ? "• No specific pitfalls captured yet." : guidance.pitfalls.map { "• \($0)" }.joined(separator: "\n")
+        let negotiationPitfalls = guidance.negotiationPitfalls.isEmpty
+            ? "• No negotiation-specific pitfalls captured yet."
+            : guidance.negotiationPitfalls.map { "• \($0)" }.joined(separator: "\n")
+        let admissions = guidance.admissionsToAvoid.isEmpty
+            ? "• No specific admissions to avoid captured yet."
+            : guidance.admissionsToAvoid.map { "• \($0)" }.joined(separator: "\n")
+        let sideArguments = guidance.weakeningSideArguments.isEmpty
+            ? "• No weakening side arguments captured yet."
+            : guidance.weakeningSideArguments.map { "• \($0)" }.joined(separator: "\n")
+        return """
+        What to say:
+        \(say)
+
+        What not to say:
+        \(dontSay)
+
+        Pitfalls:
+        \(pitfalls)
+
+        Negotiation pitfalls:
+        \(negotiationPitfalls)
+
+        Admissions to avoid:
+        \(admissions)
+
+        Side arguments that weaken leverage:
+        \(sideArguments)
+        """
+    }
+
+    private func formattedCoachingPoint(_ point: CoachingPoint) -> String {
+        let gather = point.gatherNext.isEmpty ? "• No specific next item captured yet." : point.gatherNext.map { "• \($0)" }.joined(separator: "\n")
+        return """
+        Conversation posture: \(point.conversationPosture)
+        Present facts cleanly: \(point.presentFactsCleanly)
+        Gather next:
+        \(gather)
+        Stay on-message: \(point.stayOnMessage)
+        """
+    }
+
+    private func compositeResponseAnalyses(_ analyses: [ResponseAnalysis]) -> String {
+        analyses.map { analysis in
+            let sourceParty = analysis.sourceParty?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let partyLine = (sourceParty?.isEmpty == false) ? "Source party: \(sourceParty!)\n" : ""
+            let leverage = analysis.leveragePoints.isEmpty ? "• None captured yet." : analysis.leveragePoints.map { "• \($0)" }.joined(separator: "\n")
+            let risks = analysis.risks.isEmpty ? "• None captured yet." : analysis.risks.map { "• \($0)" }.joined(separator: "\n")
+            let nextMoves = analysis.recommendedNextMoves.isEmpty ? "• None captured yet." : analysis.recommendedNextMoves.map { "• \($0)" }.joined(separator: "\n")
+            let admitted = analysis.admittedPoints.isEmpty ? "• None captured yet." : analysis.admittedPoints.map { "• \($0)" }.joined(separator: "\n")
+            let contested = analysis.deniedOrContestedPoints.isEmpty ? "• None captured yet." : analysis.deniedOrContestedPoints.map { "• \($0)" }.joined(separator: "\n")
+            let deadlines = analysis.deadlineFlags.isEmpty ? "• None captured yet." : analysis.deadlineFlags.map { "• \($0)" }.joined(separator: "\n")
+            return """
+            \(analysis.sourceType)
+            \(partyLine)Summary: \(analysis.summary)
+            Admitted points:
+            \(admitted)
+            Denied or contested points:
+            \(contested)
+            Deadline flags:
+            \(deadlines)
+            Leverage points:
+            \(leverage)
+            Risks:
+            \(risks)
+            Recommended next moves:
+            \(nextMoves)
+            """
+        }.joined(separator: "\n\n")
+    }
+
+    private func cleanedItems(_ items: [String]?) -> [String] {
+        guard let items else { return [] }
+        return items
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func cleanedText(_ text: String?) -> String? {
+        guard let text else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func normalizedCaseTitle(_ title: String) -> String {
@@ -1561,6 +1931,7 @@ final class ConversationManager: ObservableObject {
         let lead = plan.summaryLead ?? "I’m still tracking this with you."
         let evidenceHint = payload.evidenceItems.first?.title ?? payload.documentRequirements.first?.title
         let nextQuestion = unanswered.first?.text
+        let suggestedDeliverable = bestDeliverableToOffer(payload: payload, latestUserText: userText)
 
         var lines: [String] = [lead]
         if mentionsEvidence, let evidenceHint, !evidenceHint.isEmpty {
@@ -1571,7 +1942,11 @@ final class ConversationManager: ObservableObject {
         if let nextQuestion {
             lines.append(nextQuestion)
         } else {
-            lines.append("If you want, I can turn this into a strategy, evidence list, or next-step plan.")
+            if let suggestedDeliverable {
+                lines.append(deliverableOfferText(suggestedDeliverable, caseId: caseId))
+            } else {
+                lines.append("If you want, I can turn this into a timeline.")
+            }
         }
         return lines.joined(separator: " ")
     }
