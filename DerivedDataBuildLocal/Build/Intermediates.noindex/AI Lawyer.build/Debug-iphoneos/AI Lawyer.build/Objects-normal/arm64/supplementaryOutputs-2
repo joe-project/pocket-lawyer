@@ -1,4 +1,11 @@
 {
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Models/LitigationStrategy.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataBuildLocal/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategy.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataBuildLocal/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategy.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataBuildLocal/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategy.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataBuildLocal/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategy.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataBuildLocal/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategy.swiftdeps"
+  },
   "/Users/user/Desktop/AI Lawyer/AI Lawyer/Models/Message.swift" : {
     "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataBuildLocal/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/Message.swiftconstvalues",
     "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataBuildLocal/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/Message.d",
