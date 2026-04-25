@@ -28,6 +28,13 @@ final class ConversationManager: ObservableObject {
         case updateTimeline(caseId: UUID, sourceText: String)
     }
 
+    private struct PendingCaseCreationDraft {
+        let sourceText: String
+        let attachmentNames: [String]
+        let attachmentContents: [String]
+        let builderCaseId: UUID?
+    }
+
     @Published var messages: [Message] = []
     /// True after answering a user question while intake was active; UI can show "Resume intake".
     @Published var offeringResumeIntake: Bool = false
@@ -49,6 +56,7 @@ final class ConversationManager: ObservableObject {
     private var lastFolderSuggestionUserCount: [UUID: Int] = [:]
     private var guidedStages: [UUID: GuidedCaseStage] = [:]
     private var pendingCaseUpdates: [UUID: PendingCaseUpdate] = [:]
+    private var pendingCaseCreationDraft: PendingCaseCreationDraft?
     private var lastSuggestedUpdateMessageIds: [UUID: UUID] = [:]
     private var lastStrategyOfferUserCount: [UUID: Int] = [:]
 
@@ -173,6 +181,59 @@ final class ConversationManager: ObservableObject {
 
     func hasPendingCaseUpdate(for caseId: UUID) -> Bool {
         pendingCaseUpdates[caseId] != nil
+    }
+
+    func handleCaseCreationFlowMessage(
+        text: String,
+        activeCaseId: UUID?,
+        attachmentNames: [String],
+        attachmentContents: [String]
+    ) -> AppliedCaseUpdate? {
+        guard let tree = caseTreeViewModel else { return nil }
+        let builderId = activeCaseId ?? tree.startHereFolder?.id
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty || !attachmentNames.isEmpty else { return nil }
+
+        if let builderId {
+            addMessage(
+                Message(
+                    id: UUID(),
+                    caseId: builderId,
+                    fileId: nil,
+                    role: "user",
+                    content: trimmed.isEmpty ? "(attachment)" : trimmed,
+                    timestamp: Date(),
+                    attachmentNames: attachmentNames,
+                    attachmentContents: attachmentContents
+                )
+            )
+        }
+
+        let shouldBuild = normalizedDecision(trimmed) == true && pendingCaseCreationDraft != nil
+            || shouldAutoBuildCase(from: trimmed, attachmentNames: attachmentNames)
+
+        if shouldBuild {
+            let draft = pendingCaseCreationDraft
+            pendingCaseCreationDraft = nil
+            return buildCaseFromStartHere(
+                sourceText: draft?.sourceText ?? trimmed,
+                builderCaseId: builderId,
+                attachmentNames: attachmentNames.isEmpty ? (draft?.attachmentNames ?? []) : attachmentNames,
+                attachmentContents: attachmentContents.isEmpty ? (draft?.attachmentContents ?? []) : attachmentContents
+            )
+        }
+
+        pendingCaseCreationDraft = PendingCaseCreationDraft(
+            sourceText: trimmed,
+            attachmentNames: attachmentNames,
+            attachmentContents: attachmentContents,
+            builderCaseId: builderId
+        )
+        let payload = legalSignalExtractor.extract(from: trimmed, attachmentNames: attachmentNames, attachmentContents: attachmentContents)
+        let question = payload.followUpQuestions.first?.text ?? "What outcome do you want most: protection, money, a repair/fix, or stopping the other side from doing something?"
+        let msg = "I can turn this into a full case file. \(question) Want me to set it up?"
+        addLocalAssistantMessage(msg, caseId: builderId)
+        return builderId.map { AppliedCaseUpdate(caseId: $0, subfolder: .history, fileId: nil, confirmation: msg) }
     }
 
     func resolvePendingCaseUpdateReply(_ text: String, currentCaseId: UUID) -> AppliedCaseUpdate? {
@@ -342,7 +403,7 @@ final class ConversationManager: ObservableObject {
         if query.isEmpty {
             targetId = currentCaseId
         } else {
-            let ranked = ChatCaseIntentRouter.rankedCaseMatches(query: query, cases: tree.cases)
+            let ranked = ChatCaseIntentRouter.rankedCaseMatches(query: query, cases: tree.cases.filter { !$0.isReadOnly && !$0.isBuilderTemplate })
             if ranked.isEmpty {
                 let msg = "I couldn’t find a case matching “\(query)”. Say create case \(query) to start one, or use the exact sidebar title."
                 addLocalAssistantMessage(msg, caseId: currentCaseId)
@@ -371,6 +432,22 @@ final class ConversationManager: ObservableObject {
 
         guard let caseId = targetId else { return nil }
         let source = nlSourceText(text: text, currentCaseId: currentCaseId, parsed: parsed, attachmentNames: attachmentNames)
+        if parsed.kind == .addToEvidence {
+            pendingCaseUpdates[caseId] = .addToEvidence(caseId: caseId, sourceText: source, attachmentNames: attachmentNames, attachmentContents: attachmentContents)
+            pendingCaseUpdateCaseId = caseId
+            let title = tree.cases.first(where: { $0.id == caseId })?.title ?? "this case"
+            let msg = "Add this to Evidence in \(title)?"
+            addLocalAssistantMessage(msg, caseId: caseId)
+            return AppliedCaseUpdate(caseId: caseId, subfolder: .evidence, fileId: nil, confirmation: msg)
+        }
+        if parsed.kind == .addToTimeline {
+            pendingCaseUpdates[caseId] = .updateTimeline(caseId: caseId, sourceText: source)
+            pendingCaseUpdateCaseId = caseId
+            let title = tree.cases.first(where: { $0.id == caseId })?.title ?? "this case"
+            let msg = "Add this to Timeline in \(title)?"
+            addLocalAssistantMessage(msg, caseId: caseId)
+            return AppliedCaseUpdate(caseId: caseId, subfolder: .timeline, fileId: nil, confirmation: msg)
+        }
         return executeNLAdd(
             caseId: caseId,
             subfolder: parsed.targetSubfolder,
@@ -555,25 +632,22 @@ final class ConversationManager: ObservableObject {
             || normalized.contains("gathering")
             || normalized.contains("prep ") {
             let sourceText = reusableSourceText(for: currentCaseId, fallback: text)
-            let fileId = applyTimelineUpdate(caseId: targetCaseId, sourceText: sourceText)
             let title = caseTreeViewModel?.cases.first(where: { $0.id == targetCaseId })?.title ?? "this case"
-            let confirmation = "Updated the timeline for \(title)."
+            pendingCaseUpdates[targetCaseId] = .updateTimeline(caseId: targetCaseId, sourceText: sourceText)
+            pendingCaseUpdateCaseId = targetCaseId
+            let confirmation = "Add this to Timeline in \(title)?"
             addLocalAssistantMessage(confirmation, caseId: targetCaseId)
-            return AppliedCaseUpdate(caseId: targetCaseId, subfolder: .timeline, fileId: fileId, confirmation: confirmation)
+            return AppliedCaseUpdate(caseId: targetCaseId, subfolder: .timeline, fileId: nil, confirmation: confirmation)
         }
 
         if normalized.contains("evidence") || !attachmentNames.isEmpty || normalized.contains("photo") || normalized.contains("image") || normalized.contains("text message") {
             let sourceText = reusableSourceText(for: currentCaseId, fallback: text)
-            let fileId = applyEvidenceUpdate(
-                caseId: targetCaseId,
-                sourceText: sourceText,
-                attachmentNames: attachmentNames,
-                attachmentContents: attachmentContents
-            )
             let title = caseTreeViewModel?.cases.first(where: { $0.id == targetCaseId })?.title ?? "this case"
-            let confirmation = "Added that to the evidence folder for \(title)."
+            pendingCaseUpdates[targetCaseId] = .addToEvidence(caseId: targetCaseId, sourceText: sourceText, attachmentNames: attachmentNames, attachmentContents: attachmentContents)
+            pendingCaseUpdateCaseId = targetCaseId
+            let confirmation = "Add this to Evidence in \(title)?"
             addLocalAssistantMessage(confirmation, caseId: targetCaseId)
-            return AppliedCaseUpdate(caseId: targetCaseId, subfolder: .evidence, fileId: fileId, confirmation: confirmation)
+            return AppliedCaseUpdate(caseId: targetCaseId, subfolder: .evidence, fileId: nil, confirmation: confirmation)
         }
 
         if normalized.contains("document") || normalized.contains("note") || normalized.contains("history") || normalized.contains("case") {
@@ -603,6 +677,78 @@ final class ConversationManager: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return cleaned.isEmpty ? "New Case Folder" : cleaned.capitalized
+    }
+
+    private func shouldAutoBuildCase(from text: String, attachmentNames: [String]) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let words = trimmed.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+        if words >= 55 || trimmed.count >= 320 { return true }
+        if !attachmentNames.isEmpty && words >= 20 { return true }
+        return false
+    }
+
+    private func buildCaseFromStartHere(
+        sourceText: String,
+        builderCaseId: UUID?,
+        attachmentNames: [String],
+        attachmentContents: [String]
+    ) -> AppliedCaseUpdate? {
+        guard let tree = caseTreeViewModel else { return nil }
+        let title = generatedCaseTitle(from: sourceText)
+        let newId = tree.createNewCase(title: title, category: .inProgress)
+        tree.revealStandardSubfolders(caseId: newId)
+        caseManager?.ensureCaseExists(caseId: newId, title: title)
+
+        let userMessage = Message(
+            id: UUID(),
+            caseId: newId,
+            fileId: nil,
+            role: "user",
+            content: sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "(attachment)" : sourceText,
+            timestamp: Date(),
+            attachmentNames: attachmentNames,
+            attachmentContents: attachmentContents
+        )
+        addMessage(userMessage)
+
+        var payload = legalSignalExtractor.extract(
+            from: sourceText,
+            attachmentNames: attachmentNames,
+            attachmentContents: attachmentContents,
+            messageId: userMessage.id
+        )
+        payload.shouldOfferDocumentChecklist = true
+        payload.shouldOfferStrategy = true
+        if payload.suggestedDeliverable == nil {
+            payload.suggestedDeliverable = !payload.decisionTreePathways.isEmpty ? .decisionTreePathways : .strategy
+        }
+        syncStructuredPayload(payload, into: newId)
+        CaseMemoryStore.shared.merge(message: userMessage, payload: payload)
+        enqueueReasoning(caseId: newId)
+
+        let selectedOffer = bestDeliverableToOffer(payload: payload, latestUserText: sourceText) ?? .strategy
+        let offer = deliverableOfferText(selectedOffer, caseId: newId)
+        let confirmation = "Done. I created “\(title)” and set up the case sections. \(offer.isEmpty ? "I can map out a strategy to pursue this. Want me to build that for you?" : offer)"
+        addLocalAssistantMessage(confirmation, caseId: newId)
+        return AppliedCaseUpdate(caseId: newId, subfolder: .history, fileId: nil, confirmation: confirmation)
+    }
+
+    private func generatedCaseTitle(from text: String) -> String {
+        let lower = text.lowercased()
+        let prefix: String
+        if lower.contains("protective order") || lower.contains("restraining order") || lower.contains("threat") || lower.contains("abuse") {
+            prefix = "Protection Order Case"
+        } else if lower.contains("landlord") || lower.contains("tenant") || lower.contains("lease") || lower.contains("eviction") {
+            prefix = "Landlord-Tenant Case"
+        } else if lower.contains("fired") || lower.contains("boss") || lower.contains("paycheck") || lower.contains("hr") {
+            prefix = "Employment Case"
+        } else if lower.contains("accident") || lower.contains("injury") || lower.contains("insurance") {
+            prefix = "Injury / Insurance Case"
+        } else {
+            prefix = "New Legal Case"
+        }
+        let stamp = Date().formatted(.dateTime.month(.abbreviated).day())
+        return "\(prefix) - \(stamp)"
     }
 
     private func stage(for caseId: UUID?) -> GuidedCaseStage {
@@ -854,6 +1000,10 @@ final class ConversationManager: ObservableObject {
 
     private struct DecisionTreePathwayEnvelope: Decodable {
         let title: String?
+        let description: String?
+        let recommended_when: String?
+        let risk_level: String?
+        let next_steps: [String]?
         let when_to_use: String?
         let risks: [String]?
         let expected_next_step: String?
@@ -861,6 +1011,10 @@ final class ConversationManager: ObservableObject {
 
         enum CodingKeys: String, CodingKey {
             case title
+            case description
+            case recommended_when
+            case risk_level
+            case next_steps
             case when_to_use
             case risks
             case expected_next_step
@@ -872,6 +1026,10 @@ final class ConversationManager: ObservableObject {
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             title = try c.decodeIfPresent(String.self, forKey: .title)
+            description = try c.decodeIfPresent(String.self, forKey: .description)
+            recommended_when = try c.decodeIfPresent(String.self, forKey: .recommended_when)
+            risk_level = try c.decodeIfPresent(String.self, forKey: .risk_level)
+            next_steps = try c.decodeIfPresent([String].self, forKey: .next_steps)
             when_to_use = try c.decodeIfPresent(String.self, forKey: .when_to_use)
             risks = try c.decodeIfPresent([String].self, forKey: .risks)
             expected_next_step = try c.decodeIfPresent(String.self, forKey: .expected_next_step)
@@ -1004,7 +1162,11 @@ final class ConversationManager: ObservableObject {
             decisionTreePathways: (envelope.decision_tree_pathways ?? []).map {
                 DecisionTreePathway(
                     title: cleanedText($0.title) ?? "Case pathway",
-                    whenToUse: cleanedText($0.when_to_use) ?? "Use this path when it best matches your proof and leverage.",
+                    description: cleanedText($0.description),
+                    recommendedWhen: cleanedText($0.recommended_when),
+                    riskLevel: cleanedText($0.risk_level),
+                    nextSteps: cleanedItems($0.next_steps),
+                    whenToUse: cleanedText($0.when_to_use ?? $0.recommended_when) ?? "Use this path when it best matches your proof and leverage.",
                     risks: cleanedItems($0.risks),
                     expectedNextStep: cleanedText($0.expected_next_step) ?? "Confirm the next concrete step and supporting documents.",
                     keyEvidenceOrDocuments: cleanedItems($0.key_evidence_or_documents)
@@ -1136,6 +1298,12 @@ final class ConversationManager: ObservableObject {
             || lower.contains("opposing counsel")
         if responseIntent { return .responses }
 
+        if shouldForceCaseBuildingOffer(latestUserText) {
+            if !payload.decisionTreePathways.isEmpty { return .decisionTreePathways }
+            if payload.shouldOfferStrategy || !payload.strategyNotes.isEmpty { return .strategy }
+            if payload.shouldOfferDocumentChecklist || !payload.documentRequirements.isEmpty { return .documents }
+            return .decisionTreePathways
+        }
         if let explicit = payload.suggestedDeliverable { return explicit }
         if !payload.responseAnalyses.isEmpty { return .responses }
         if !payload.sayDontSayGuidance.isEmpty { return .sayDontSay }
@@ -1146,6 +1314,15 @@ final class ConversationManager: ObservableObject {
         if payload.shouldOfferEvidenceUpdate || !payload.evidenceItems.isEmpty { return .evidence }
         if payload.shouldOfferTimelineUpdate || !payload.timelineEvents.isEmpty { return .timeline }
         return nil
+    }
+
+    private func shouldForceCaseBuildingOffer(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        let words = lower.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+        if words >= 45 || lower.count >= 260 { return true }
+        let emotional = ["scared", "afraid", "terrified", "threat", "harassed", "abuse", "unsafe", "panic", "angry", "desperate"]
+        let legal = ["sue", "court", "file", "served", "eviction", "landlord", "insurance", "adjuster", "police", "protective order", "restraining order", "discrimination", "fired"]
+        return emotional.contains(where: lower.contains) || legal.contains(where: lower.contains)
     }
 
     private func deliverableOfferText(_ deliverable: StructuredDeliverableCategory, caseId: UUID?) -> String {
@@ -1394,10 +1571,16 @@ final class ConversationManager: ObservableObject {
     private func formattedDecisionPathway(_ pathway: DecisionTreePathway) -> String {
         let risks = pathway.risks.isEmpty ? "• No major risk captured yet." : pathway.risks.map { "• \($0)" }.joined(separator: "\n")
         let evidence = pathway.keyEvidenceOrDocuments.isEmpty ? "• No key evidence listed yet." : pathway.keyEvidenceOrDocuments.map { "• \($0)" }.joined(separator: "\n")
+        let nextSteps = pathway.nextSteps.isEmpty ? "• \(pathway.expectedNextStep)" : pathway.nextSteps.map { "• \($0)" }.joined(separator: "\n")
         return """
         \(pathway.title)
+        Description: \(pathway.description)
+        Recommended when: \(pathway.recommendedWhen)
+        Risk level: \(pathway.riskLevel)
         When to use: \(pathway.whenToUse)
         Expected next step: \(pathway.expectedNextStep)
+        Next steps:
+        \(nextSteps)
         Risks:
         \(risks)
         Evidence / documents that matter most:
@@ -1504,6 +1687,7 @@ final class ConversationManager: ObservableObject {
 
     private func targetCaseId(from normalizedText: String) -> UUID? {
         if let id = caseTreeViewModel?.cases.first(where: { folder in
+            guard !folder.isReadOnly, !folder.isBuilderTemplate else { return false }
             let title = normalizedCaseTitle(folder.title)
             return !title.isEmpty && normalizedText.contains(title)
         })?.id {
@@ -1526,7 +1710,7 @@ final class ConversationManager: ObservableObject {
         guard userWords.count >= 1 else { return nil }
 
         var best: (UUID, Int)?
-        for folder in caseList {
+        for folder in caseList where !folder.isReadOnly && !folder.isBuilderTemplate {
             let titleWords = significantWordsForCaseRouting(normalizedCaseTitle(folder.title))
             guard !titleWords.isEmpty else { continue }
             let overlap = userWords.intersection(titleWords).count

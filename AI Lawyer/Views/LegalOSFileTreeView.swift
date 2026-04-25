@@ -120,7 +120,7 @@ struct LegalOSFileTreeView: View {
                                 .padding(.top, 8)
                         }
 
-                        ForEach(caseTreeViewModel.cases) { folder in
+                        ForEach(caseTreeViewModel.orderedCases) { folder in
                             caseNode(folder)
                         }
                     } else {

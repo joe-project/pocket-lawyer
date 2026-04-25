@@ -167,14 +167,42 @@ final class ChatViewModel: ObservableObject {
             return false
         }
 
-        guard let caseId = workspace.selectedCaseId else {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasAttachments = !attachmentNames.isEmpty
+        let activeCaseId = workspace.selectedCaseId
+
+        if workspace.caseTreeViewModel.isStartHereCase(activeCaseId) {
+            guard !trimmed.isEmpty || hasAttachments else { return false }
+            if activeCaseId == nil, let start = workspace.caseTreeViewModel.startHereFolder {
+                workspace.selectCase(byFolder: start)
+            }
+            if let applied = conversationManager.handleCaseCreationFlowMessage(
+                text: text,
+                activeCaseId: activeCaseId ?? workspace.caseTreeViewModel.startHereFolder?.id,
+                attachmentNames: attachmentNames,
+                attachmentContents: attachmentContents
+            ) {
+                let startId = workspace.caseTreeViewModel.startHereFolder?.id
+                if applied.caseId != startId {
+                    applyAppliedCaseUpdate(applied, workspace: workspace)
+                }
+            }
+            return true
+        }
+
+        guard let caseId = activeCaseId else {
             print("❌ No case selected")
             errorMessage = "Select an active case before sending a message."
             return false
         }
 
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasAttachments = !attachmentNames.isEmpty
+        if workspace.caseTreeViewModel.isReadOnlyCase(caseId) {
+            conversationManager.addLocalAssistantMessage(
+                "This example case is read-only. Start in “Start Here” and I’ll build your own case file from your facts.",
+                caseId: caseId
+            )
+            return true
+        }
 
         if handleFolderSuggestionReplyIfNeeded(text, currentCaseId: caseId, workspace: workspace) {
             return true

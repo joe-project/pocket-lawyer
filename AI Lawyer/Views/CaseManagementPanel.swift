@@ -131,6 +131,7 @@ struct CaseManagementPanel: View {
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.6)
                         .onEnded { _ in
+                            guard !folder.isReadOnly else { return }
                             renamingCase = folder
                             renameText = folder.title
                         }
@@ -148,7 +149,7 @@ struct CaseManagementPanel: View {
     }
 
     private var filteredCases: [CaseFolder] {
-        var list = caseTreeViewModel.cases
+        var list = caseTreeViewModel.orderedCases
         if workspace.isInvitedParticipantMode, let id = workspace.invitedCaseId {
             list = list.filter { $0.id == id }
         }

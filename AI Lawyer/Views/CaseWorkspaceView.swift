@@ -192,8 +192,7 @@ struct CaseWorkspaceView: View {
     }
 
     private func isAnalyzing(caseId: UUID) -> Bool {
-        guard selectedSection != .chat else { return false }
-        return chatViewModel.isSending || conversationManager.analyzingCaseIds.contains(caseId)
+        false
     }
 
     /// Keeps the latest chat (and CTAs below it) visible above the bottom `safeAreaInset` input bar.
@@ -966,6 +965,12 @@ struct CaseWorkspaceView: View {
                 Button {
                     caseTreeViewModel.selectedSubfolder = subfolder
                     caseTreeViewModel.selectedFileId = file.id
+                    if subfolder == .decisionTreePathways {
+                        conversationManager.addLocalAssistantMessage(
+                            "Which pathway do you want to explore first, and what evidence do you already have for that route?",
+                            caseId: caseId
+                        )
+                    }
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: iconName(for: file.type))

@@ -372,7 +372,7 @@ final class CaseTreeViewModel: ObservableObject {
     func revealStandardSubfolders(caseId: UUID) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
         guard canMutateCase(caseId) else { return }
-        cases[idx].hiddenSubfolders.removeAll()
+        cases[idx].hiddenSubfolders = [.recordings, .history, .filedDocuments]
         save()
     }
 

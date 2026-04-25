@@ -192,13 +192,16 @@ struct LegalSignalExtractor {
     }
 
     private func detectDecisionTreePathways(for caseType: String?, in lower: String) -> [DecisionTreePathway] {
+        let forceCaseBuilding = lower.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count >= 45
+            || ["scared", "afraid", "threat", "abuse", "unsafe", "sue", "court", "file", "eviction", "insurance", "protective order", "restraining order"].contains(where: lower.contains)
         guard lower.contains("decision tree")
             || lower.contains("pathway")
             || lower.contains("path")
             || lower.contains("options")
             || lower.contains("settle")
             || lower.contains("mediate")
-            || lower.contains("file") else {
+            || lower.contains("file")
+            || forceCaseBuilding else {
             return []
         }
 
