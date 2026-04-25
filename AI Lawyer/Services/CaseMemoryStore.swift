@@ -73,6 +73,87 @@ final class CaseMemoryStore {
         memory(for: caseId) ?? CaseMemory()
     }
 
+    /// Merges a user message and locally extracted workflow payload into memory synchronously (no AI round-trip).
+    /// Used when bootstrapping a new case so prompts have immediate structured context.
+    func merge(message: Message, payload: CaseUpdatePayload) {
+        guard let caseId = message.caseId else { return }
+        var memory = memoryOrEmpty(for: caseId)
+
+        let trimmedContent = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedContent.isEmpty, trimmedContent != "(attachment)" {
+            memory.events = mergeStringLists(memory.events, [trimmedContent])
+        }
+        for name in message.attachmentNames where !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            memory.evidence = mergeStringLists(memory.evidence, ["Attachment: \(name)"])
+        }
+
+        if let summary = payload.summary?.trimmingCharacters(in: .whitespacesAndNewlines), !summary.isEmpty {
+            memory.claims = mergeStringLists(memory.claims, [summary])
+        }
+        if let caseType = payload.caseType?.trimmingCharacters(in: .whitespacesAndNewlines), !caseType.isEmpty {
+            memory.claims = mergeStringLists(memory.claims, ["Case type: \(caseType)"])
+        }
+
+        for fact in payload.extractedFacts {
+            let value = fact.value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty else { continue }
+            switch fact.kind {
+            case .person:
+                memory.people = mergeStringLists(memory.people, [value])
+            case .date, .location, .deadline, .venue, .requestedAction:
+                memory.events = mergeStringLists(memory.events, [value])
+            case .claim, .injury, .caseType:
+                memory.claims = mergeStringLists(memory.claims, [value])
+            case .evidence, .document:
+                memory.evidence = mergeStringLists(memory.evidence, [value])
+            }
+        }
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        dateFormatter.timeStyle = .none
+        for event in payload.timelineEvents {
+            let desc = event.description.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !desc.isEmpty else { continue }
+            let line: String
+            if let date = event.date {
+                line = "\(dateFormatter.string(from: date)): \(desc)"
+            } else {
+                line = desc
+            }
+            memory.events = mergeStringLists(memory.events, [line])
+        }
+
+        for item in payload.evidenceItems {
+            var line = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let notes = item.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
+                line = line.isEmpty ? notes : "\(line) — \(notes)"
+            }
+            guard !line.isEmpty else { continue }
+            memory.evidence = mergeStringLists(memory.evidence, [line])
+        }
+
+        for requirement in payload.documentRequirements {
+            let title = requirement.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else { continue }
+            memory.evidence = mergeStringLists(memory.evidence, ["Document needed: \(title)"])
+        }
+
+        for note in payload.strategyNotes {
+            let text = note.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { continue }
+            memory.claims = mergeStringLists(memory.claims, [text])
+        }
+
+        for pathway in payload.decisionTreePathways {
+            let title = pathway.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else { continue }
+            memory.events = mergeStringLists(memory.events, ["Pathway option: \(title)"])
+        }
+
+        setMemory(memory, forCaseId: caseId)
+    }
+
     /// Updates the case memory with new information using the AI engine, persists the result, and returns the updated memory.
     /// Call when new messages, evidence, or other information arrive so the memory stays current without recomputing from full history.
     func updateMemory(caseId: UUID, newInformation: String) async throws -> CaseMemory {
@@ -98,5 +179,23 @@ final class CaseMemoryStore {
             self.cache.removeValue(forKey: caseId)
             self.saveToDisk(self.cache)
         }
+    }
+
+    private func mergeStringLists(_ existing: [String], _ newItems: [String]) -> [String] {
+        var result = existing
+        var seen = Set(
+            existing
+                .map { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        )
+        for item in newItems {
+            let trimmed = item.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let key = trimmed.lowercased()
+            if seen.contains(key) { continue }
+            seen.insert(key)
+            result.append(trimmed)
+        }
+        return result
     }
 }
