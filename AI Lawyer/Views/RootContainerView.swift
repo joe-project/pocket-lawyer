@@ -10,7 +10,7 @@ struct RootContainerView: View {
     @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
     @AppStorage("hasAcceptedLegalDisclaimer") private var hasAcceptedLegalDisclaimer = false
 
-    @State private var selectedWorkspaceItem: SidebarWorkspaceItem = .generalLawQuestions
+    @State private var selectedWorkspaceItem: SidebarWorkspaceItem = .exampleCase
     @State private var showAddEvidenceSheet = false
     @State private var isSidebarOpen = true
     /// `0` = fully open, `-sidebarWidth` = fully closed (matches drag math).
