@@ -3,6 +3,9 @@ import Combine
 
 @MainActor
 final class CaseTreeViewModel: ObservableObject {
+    static let startHereTitle = "Start Here"
+    static let exampleCaseTitle = "Order of Protection – Example"
+
     @Published var cases: [CaseFolder] = []
     @Published var selectedCase: CaseFolder?
     /// Workspace tab (Overview, Timeline, Chat, etc.). Replaces folder grouping.
@@ -20,9 +23,10 @@ final class CaseTreeViewModel: ObservableObject {
         if loadedCases.isEmpty {
             seedStarterData()
         } else {
-            cases = migrateLoadedCases(loadedCases)
+            cases = ordered(migrateLoadedCases(loadedCases))
             timelineEvents = loadedTimeline
-            selectedCase = cases.first(where: { $0.title == "Example Case" }) ?? cases.first
+            ensurePinnedTimelineEntries()
+            selectedCase = startHereFolder ?? cases.first
         }
         selectedWorkspaceSection = .chat
         selectedSubfolder = .evidence
@@ -35,10 +39,12 @@ final class CaseTreeViewModel: ObservableObject {
     }
 
     private func seedStarterData() {
-        let folder = makeStarterCase(id: UUID())
-        cases = [folder]
-        timelineEvents[folder.id] = []
-        selectedCase = folder
+        let startHere = makeStartHereFolder(id: UUID())
+        let example = makeExampleCase(id: UUID())
+        cases = ordered([startHere, example])
+        timelineEvents[startHere.id] = []
+        timelineEvents[example.id] = exampleTimelineEvents()
+        selectedCase = startHere
     }
 
     private func migrateLoadedCases(_ loadedCases: [CaseFolder]) -> [CaseFolder] {
@@ -63,16 +69,43 @@ final class CaseTreeViewModel: ObservableObject {
             .filter { !oldDemoTitles.contains($0.title) }
             .map(normalizedCaseFolder(_:))
 
-        if updated.isEmpty {
-            return [makeStarterCase(id: UUID())]
+        if !updated.contains(where: { $0.isBuilderTemplate || $0.title == Self.startHereTitle }) {
+            updated.insert(makeStartHereFolder(id: UUID()), at: 0)
         }
 
-        return updated
+        if let exampleIndex = updated.firstIndex(where: { $0.title == "Example Case" }) {
+            let existingId = updated[exampleIndex].id
+            updated[exampleIndex] = makeExampleCase(id: existingId)
+        } else if !updated.contains(where: { $0.title == Self.exampleCaseTitle }) {
+            updated.append(makeExampleCase(id: UUID()))
+        }
+
+        return ordered(updated)
     }
 
-    private func makeStarterCase(id: UUID) -> CaseFolder {
-        var folder = CaseFolder(id: id, title: "Example Case", category: .inProgress)
-        folder.hiddenSubfolders = [.recordings, .history, .filedDocuments]
+    private func makeStartHereFolder(id: UUID) -> CaseFolder {
+        var folder = CaseFolder(
+            id: id,
+            title: Self.startHereTitle,
+            category: .inProgress,
+            isBuilderTemplate: true,
+            sidebarSortIndex: 0
+        )
+        folder.hiddenSubfolders = CaseSubfolder.allCases.filter { $0 != .history }
+        folder.customFolderNames[.history] = "Builder Notes"
+        return folder
+    }
+
+    private func makeExampleCase(id: UUID) -> CaseFolder {
+        var folder = CaseFolder(
+            id: id,
+            title: Self.exampleCaseTitle,
+            category: .inProgress,
+            subfolders: exampleSubfolders(caseId: id),
+            hiddenSubfolders: [.recordings, .history, .filedDocuments],
+            isReadOnly: true,
+            sidebarSortIndex: 1
+        )
         folder.customFolderNames[.strategy] = "Strategy"
         folder.customFolderNames[.coaching] = "Coaching"
         folder.customFolderNames[.decisionTreePathways] = "Decision Tree Pathways"
@@ -82,6 +115,17 @@ final class CaseTreeViewModel: ObservableObject {
 
     private func normalizedCaseFolder(_ folder: CaseFolder) -> CaseFolder {
         var normalized = folder
+        if normalized.title == Self.startHereTitle {
+            normalized.isBuilderTemplate = true
+            normalized.isReadOnly = false
+            normalized.sidebarSortIndex = 0
+            normalized.hiddenSubfolders = CaseSubfolder.allCases.filter { $0 != .history }
+            normalized.customFolderNames[.history] = normalized.customFolderNames[.history] ?? "Builder Notes"
+            return normalized
+        }
+        if normalized.title == Self.exampleCaseTitle || normalized.title == "Example Case" {
+            return makeExampleCase(id: normalized.id)
+        }
         let hiddenDefaults: [CaseSubfolder] = [.recordings, .history, .filedDocuments]
         for subfolder in hiddenDefaults where !normalized.hiddenSubfolders.contains(subfolder) {
             normalized.hiddenSubfolders.append(subfolder)
@@ -91,7 +135,177 @@ final class CaseTreeViewModel: ObservableObject {
         normalized.customFolderNames[.coaching] = normalized.customFolderNames[.coaching] ?? "Coaching"
         normalized.customFolderNames[.decisionTreePathways] = normalized.customFolderNames[.decisionTreePathways] ?? "Decision Tree Pathways"
         normalized.customFolderNames[.sayDontSay] = normalized.customFolderNames[.sayDontSay] ?? "Say / Don't Say"
+        normalized.isReadOnly = false
+        normalized.isBuilderTemplate = false
         return normalized
+    }
+
+    var orderedCases: [CaseFolder] {
+        ordered(cases)
+    }
+
+    var startHereFolder: CaseFolder? {
+        cases.first { $0.isBuilderTemplate || $0.title == Self.startHereTitle }
+    }
+
+    func isStartHereCase(_ caseId: UUID?) -> Bool {
+        guard let caseId else { return true }
+        return cases.first(where: { $0.id == caseId }).map { $0.isBuilderTemplate || $0.title == Self.startHereTitle } ?? true
+    }
+
+    func isReadOnlyCase(_ caseId: UUID) -> Bool {
+        cases.first(where: { $0.id == caseId })?.isReadOnly == true
+    }
+
+    private func canMutateCase(_ caseId: UUID) -> Bool {
+        !isReadOnlyCase(caseId)
+    }
+
+    private func ordered(_ folders: [CaseFolder]) -> [CaseFolder] {
+        folders.sorted { lhs, rhs in
+            let left = lhs.sidebarSortIndex ?? Int.max
+            let right = rhs.sidebarSortIndex ?? Int.max
+            if left != right { return left < right }
+            return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+        }
+    }
+
+    private func ensurePinnedTimelineEntries() {
+        if let start = startHereFolder {
+            timelineEvents[start.id] = timelineEvents[start.id] ?? []
+        }
+        if let example = cases.first(where: { $0.title == Self.exampleCaseTitle }) {
+            timelineEvents[example.id] = exampleTimelineEvents()
+        }
+    }
+
+    private func exampleSubfolders(caseId: UUID) -> [CaseSubfolder: [CaseFile]] {
+        [
+            .history: [
+                exampleNote("Example Intake Conversation", caseId: caseId, content: """
+                User: My ex threatened me outside my apartment after sending several scary texts.
+                Pocket Lawyer: I can help organize this into a protection order case. What happened most recently, and do you have screenshots or witnesses?
+                User: Yesterday he said he would come back tonight, and my neighbor heard it.
+                Pocket Lawyer: That gives us recent threat, witness, and urgency facts. I would build the filing packet around dates, direct quotes, screenshots, and your fear of immediate harm.
+                """)
+            ],
+            .evidence: [
+                exampleNote("Incident Log", caseId: caseId, content: """
+                • Jan 4 - Defendant sent repeated texts saying he would "make me pay."
+                • Jan 7 - Defendant waited outside workplace and followed user to car.
+                • Jan 10 - Neighbor heard defendant yell a direct threat outside apartment.
+                • Jan 11 - User saved screenshots and wrote down witness name.
+                • Jan 12 - User considered emergency protection order because defendant threatened to return.
+                """)
+            ],
+            .documents: [
+                exampleNote("Protection Order Filing Checklist", caseId: caseId, content: """
+                • Petition/application for protection order
+                • Incident log with dates and direct quotes
+                • Screenshots or printed messages
+                • Witness names and contact information
+                • Address information needed for service
+                • Any police report or prior complaint number
+                """),
+                exampleNote("Where to File (State Example)", caseId: caseId, content: """
+                File in the county court or family/protection order intake office where the protected person lives, where the defendant lives, or where the incidents happened. Confirm local rules before filing.
+                """),
+                exampleNote("Emergency vs Standard Order", caseId: caseId, content: """
+                Emergency order: use when recent threats or immediate safety concerns justify same-day review.
+                Standard order: use when the threat is serious but not immediate, or when more evidence can be gathered before hearing.
+                """)
+            ],
+            .response: [
+                exampleNote("Example Defendant Denial Response", caseId: caseId, content: """
+                Defendant denies making threats and claims the contact was mutual.
+
+                Response analysis:
+                • Treat denial as expected, not fatal.
+                • Compare denial against screenshots, direct quotes, witness account, and timing.
+                • Avoid arguing motive; focus on conduct, fear, and documented incidents.
+                """)
+            ],
+            .strategy: [
+                exampleNote("Protection Order Strategy", caseId: caseId, content: """
+                Immediate filing path: strongest if recent threat, fear of return, screenshots, or witness support are ready.
+                Evidence-gathering path: use if dates, quotes, or exhibits are too vague for a judge.
+                Risk level: High if defendant knows where user lives or recently threatened return.
+                """)
+            ],
+            .coaching: [
+                exampleNote("Courtroom Coaching", caseId: caseId, content: """
+                How to speak to the judge:
+                • Start with the most recent threat.
+                • Use dates, direct quotes, and specific conduct.
+                • Explain why you are afraid now.
+                • Stay calm and do not argue with the defendant.
+                • Ask clearly for no contact and stay-away terms.
+                """)
+            ],
+            .decisionTreePathways: [
+                exampleNote("Decision Tree Pathways", caseId: caseId, content: """
+                Path 1: File immediately
+                Description: Seek emergency protection based on recent threats and fear of return.
+                Recommended when: Threat is recent, specific, and supported by screenshots or witness.
+                Risk level: Medium
+                Next steps:
+                • Prepare petition.
+                • Attach incident log and screenshots.
+                • Ask clerk about emergency review.
+
+                Path 2: Gather more evidence first
+                Description: Tighten proof before filing.
+                Recommended when: Facts are real but dates, screenshots, or witness details are incomplete.
+                Risk level: Medium-High if delay affects safety.
+                Next steps:
+                • Print texts.
+                • Write date-by-date timeline.
+                • Ask witness for a short statement.
+
+                Path 3: Attempt no-contact request before filing
+                Description: Send one clear written no-contact demand only if safe.
+                Recommended when: Immediate danger is lower and user wants a written boundary before court.
+                Risk level: High if contact escalates.
+                Next steps:
+                • Use neutral wording.
+                • Do not debate.
+                • Save any response.
+                """)
+            ],
+            .sayDontSay: [
+                exampleNote("Say / Don't Say", caseId: caseId, content: """
+                Say:
+                • "On Jan 10, he said, '[direct threat],' and I believed he would come back."
+                • "I am afraid because the threats are recent and specific."
+                • "I have screenshots and a witness who heard the threat."
+
+                Don't say:
+                • Do not exaggerate or guess.
+                • Do not speculate about mental state.
+                • Do not focus on unrelated relationship history unless it explains current fear.
+                """)
+            ]
+        ]
+    }
+
+    private func exampleNote(_ name: String, caseId: UUID, content: String) -> CaseFile {
+        CaseFile(
+            name: name,
+            type: .note,
+            relativePath: "",
+            caseId: caseId,
+            content: content,
+            responseTag: .note
+        )
+    }
+
+    private func exampleTimelineEvents() -> [TimelineEvent] {
+        [
+            TimelineEvent(kind: .response, title: "Jan 4 - Threatening texts", summary: "Severity: medium. Repeated texts included retaliatory language.", subfolder: .timeline),
+            TimelineEvent(kind: .response, title: "Jan 7 - Followed after work", summary: "Severity: high. Defendant waited outside workplace and followed user to car.", subfolder: .timeline),
+            TimelineEvent(kind: .response, title: "Jan 10 - Direct threat overheard", summary: "Severity: high. Neighbor heard direct threat outside apartment.", subfolder: .timeline),
+            TimelineEvent(kind: .response, title: "Jan 12 - Emergency filing considered", summary: "Severity: high. User feared defendant would return that night.", subfolder: .timeline)
+        ]
     }
 
     /// Ensures a case exists (e.g. when opening via invitation link). Adds it with the given title if not present.
@@ -99,11 +313,13 @@ final class CaseTreeViewModel: ObservableObject {
         guard !cases.contains(where: { $0.id == id }) else { return }
         let folder = normalizedCaseFolder(CaseFolder(id: id, title: title, category: .inProgress))
         cases.append(folder)
+        cases = ordered(cases)
         save()
     }
 
     func renameCase(id: UUID, to newTitle: String) {
         guard let idx = cases.firstIndex(where: { $0.id == id }) else { return }
+        guard canMutateCase(id) else { return }
         let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         cases[idx].title = trimmed
@@ -113,6 +329,7 @@ final class CaseTreeViewModel: ObservableObject {
     /// Court-assigned number after filing; optional until the user enters it.
     func setCourtCaseNumber(id: UUID, number: String?) {
         guard let idx = cases.firstIndex(where: { $0.id == id }) else { return }
+        guard canMutateCase(id) else { return }
         let trimmed = number?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         cases[idx].courtCaseNumber = trimmed.isEmpty ? nil : trimmed
         save()
@@ -120,11 +337,12 @@ final class CaseTreeViewModel: ObservableObject {
 
     func deleteCase(id: UUID) {
         guard let idx = cases.firstIndex(where: { $0.id == id }) else { return }
+        guard canMutateCase(id) else { return }
         cases.remove(at: idx)
         timelineEvents.removeValue(forKey: id)
 
         if selectedCase?.id == id {
-            selectedCase = cases.first(where: { $0.title == "Example Case" }) ?? cases.first
+            selectedCase = startHereFolder ?? cases.first
             selectedFileId = nil
             selectedSubfolder = .evidence
             selectedWorkspaceSection = .chat
@@ -141,6 +359,7 @@ final class CaseTreeViewModel: ObservableObject {
         var folder = CaseFolder(id: id, title: name, category: category)
         folder = normalizedCaseFolder(folder)
         cases.append(folder)
+        cases = ordered(cases)
         selectedCase = folder
         selectedSubfolder = .evidence
         selectedFileId = nil
@@ -152,6 +371,7 @@ final class CaseTreeViewModel: ObservableObject {
     /// Shows every built-in subfolder in the sidebar (Evidence, Timeline, Responses, History, etc.).
     func revealStandardSubfolders(caseId: UUID) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        guard canMutateCase(caseId) else { return }
         cases[idx].hiddenSubfolders.removeAll()
         save()
     }
@@ -159,6 +379,7 @@ final class CaseTreeViewModel: ObservableObject {
     @discardableResult
     func upsertTextFile(caseId: UUID, subfolder: CaseSubfolder, name: String, content: String) -> UUID? {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return nil }
+        guard canMutateCase(caseId) else { return nil }
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
         if let existingIndex = cases[idx].subfolders[subfolder]?.firstIndex(where: { $0.name == name }) {
@@ -177,6 +398,7 @@ final class CaseTreeViewModel: ObservableObject {
     }
 
     func addTimelineEvent(_ event: TimelineEvent, caseId: UUID) {
+        guard canMutateCase(caseId) else { return }
         var list = timelineEvents[caseId] ?? []
         list.append(event)
         timelineEvents[caseId] = list
@@ -188,6 +410,7 @@ final class CaseTreeViewModel: ObservableObject {
     }
 
     func revertTimeline(to eventId: UUID, caseId: UUID) {
+        guard canMutateCase(caseId) else { return }
         guard let list = timelineEvents[caseId],
               let index = list.firstIndex(where: { $0.id == eventId }) else { return }
         timelineEvents[caseId] = Array(list.prefix(through: index))
@@ -203,6 +426,7 @@ final class CaseTreeViewModel: ObservableObject {
     /// Set custom display name for a folder in a case.
     func setFolderDisplayName(caseId: UUID, subfolder: CaseSubfolder, name: String) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        guard canMutateCase(caseId) else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             cases[idx].customFolderNames.removeValue(forKey: subfolder)
@@ -226,6 +450,7 @@ final class CaseTreeViewModel: ObservableObject {
 
     func setSubfolderHidden(caseId: UUID, subfolder: CaseSubfolder, hidden: Bool) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        guard canMutateCase(caseId) else { return }
         if hidden {
             if !cases[idx].hiddenSubfolders.contains(subfolder) {
                 cases[idx].hiddenSubfolders.append(subfolder)
@@ -244,6 +469,7 @@ final class CaseTreeViewModel: ObservableObject {
     /// Add a document with optional on-disk content (all stored on device).
     func addGeneratedDocument(caseId: UUID, subfolder: CaseSubfolder, name: String, content: String) -> (CaseFile, TimelineEvent)? {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return nil }
+        guard canMutateCase(caseId) else { return nil }
         let docId = UUID()
         let relPath = "CaseFiles/\(caseId.uuidString)/\(subfolder.rawValue.replacingOccurrences(of: " ", with: "_"))/\(docId.uuidString).docx"
 
@@ -294,6 +520,7 @@ final class CaseTreeViewModel: ObservableObject {
     /// Add an image file (stored on device).
     func addImage(caseId: UUID, subfolder: CaseSubfolder, name: String, imageData: Data) -> CaseFile? {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return nil }
+        guard canMutateCase(caseId) else { return nil }
         let fileId = UUID()
         let relPath = "CaseFiles/\(caseId.uuidString)/\(subfolder.rawValue.replacingOccurrences(of: " ", with: "_"))/\(fileId.uuidString).jpg"
         storage.writeImage(caseId: caseId, subfolder: subfolder, fileId: fileId, data: imageData)
@@ -310,6 +537,7 @@ final class CaseTreeViewModel: ObservableObject {
     /// Add a recording to a recording subfolder (Voice Stories, Witness Statements, etc.). Optionally pass audio data to save to disk.
     func addRecording(caseId: UUID, recordingSubfolder: RecordingSubfolder, name: String, audioData: Data? = nil, durationSeconds: Int? = nil) -> CaseFile? {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return nil }
+        guard canMutateCase(caseId) else { return nil }
         let fileId = UUID()
         let subfolderDir = CaseSubfolder.recordings.rawValue.replacingOccurrences(of: " ", with: "_")
         let relPath = "CaseFiles/\(caseId.uuidString)/\(subfolderDir)/\(fileId.uuidString).m4a"
@@ -337,6 +565,7 @@ final class CaseTreeViewModel: ObservableObject {
     /// Add any file (e.g. user-created document). Content is stored on device.
     func addFile(caseId: UUID, subfolder: CaseSubfolder, file: CaseFile, content: String?) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        guard canMutateCase(caseId) else { return }
         let contentToWrite = content ?? ""
         storage.writeFileContent(caseId: caseId, subfolder: subfolder, fileId: file.id, type: file.type, content: contentToWrite)
         let subfolderDir = subfolder.rawValue.replacingOccurrences(of: " ", with: "_")
@@ -365,6 +594,7 @@ final class CaseTreeViewModel: ObservableObject {
         responseTag: ResponseTag? = nil
     ) -> CaseFile? {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return nil }
+        guard canMutateCase(caseId) else { return nil }
 
         let fileId = UUID()
         storage.writeBinaryFile(caseId: caseId, subfolder: subfolder, fileId: fileId, type: type, data: data)
@@ -406,6 +636,7 @@ final class CaseTreeViewModel: ObservableObject {
 
     /// Update file name or content (stored on device).
     func updateFile(caseId: UUID, subfolder: CaseSubfolder, fileId: UUID, newName: String?, newContent: String?) {
+        guard canMutateCase(caseId) else { return }
         guard let idx = cases.firstIndex(where: { $0.id == caseId }),
               var files = cases[idx].subfolders[subfolder],
               let fileIdx = files.firstIndex(where: { $0.id == fileId }) else { return }
@@ -448,6 +679,7 @@ final class CaseTreeViewModel: ObservableObject {
         fileId: UUID,
         toSubfolder: CaseSubfolder? = nil
     ) -> CaseFile? {
+        guard canMutateCase(caseId) else { return nil }
         guard let source = file(for: caseId, subfolder: subfolder, fileId: fileId) else { return nil }
         let destination = toSubfolder ?? subfolder
         let newFileId = UUID()
@@ -515,12 +747,14 @@ final class CaseTreeViewModel: ObservableObject {
 
     /// Moves a file by duplicating into the destination and deleting the original.
     func moveFile(caseId: UUID, fromSubfolder: CaseSubfolder, toSubfolder: CaseSubfolder, fileId: UUID) {
+        guard canMutateCase(caseId) else { return }
         guard let _ = duplicateFile(caseId: caseId, subfolder: fromSubfolder, fileId: fileId, toSubfolder: toSubfolder) else { return }
         deleteFile(caseId: caseId, subfolder: fromSubfolder, fileId: fileId)
     }
 
     func deleteFile(caseId: UUID, subfolder: CaseSubfolder, fileId: UUID) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        guard canMutateCase(caseId) else { return }
         guard let file = cases[idx].subfolders[subfolder]?.first(where: { $0.id == fileId }) else { return }
 
         cases[idx].subfolders[subfolder]?.removeAll { $0.id == fileId }
@@ -545,6 +779,7 @@ final class CaseTreeViewModel: ObservableObject {
 
     private func appendFile(_ file: CaseFile, to subfolder: CaseSubfolder, caseId: UUID) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        guard canMutateCase(caseId) else { return }
         var folder = cases[idx]
         var files = folder.subfolders[subfolder] ?? []
         files.append(file)
@@ -640,6 +875,7 @@ final class CaseTreeViewModel: ObservableObject {
     /// For now, rollback only supports text-based files (docx/note). Images/audio can be rolled back only
     /// if their `content` field is present (otherwise this is a no-op).
     func rollbackFileVersion(caseId: UUID, subfolder: CaseSubfolder, fileId: UUID) {
+        guard canMutateCase(caseId) else { return }
         guard let fileToRollback = file(for: caseId, subfolder: subfolder, fileId: fileId) else { return }
         guard let existingContent = fileToRollback.content else { return }
 
@@ -696,12 +932,14 @@ final class CaseTreeViewModel: ObservableObject {
 
     func addEmailDraft(caseId: UUID, draft: EmailDraft) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        guard canMutateCase(caseId) else { return }
         let linked = EmailDraft(id: draft.id, caseId: caseId, subject: draft.subject, body: draft.body, suggestedRecipient: draft.suggestedRecipient, createdAt: draft.createdAt)
         cases[idx].emailDrafts.append(linked)
         save()
     }
 
     func updateEmailDraft(caseId: UUID, draftId: UUID, subject: String?, body: String?, suggestedRecipient: String?) {
+        guard canMutateCase(caseId) else { return }
         guard let idx = cases.firstIndex(where: { $0.id == caseId }),
               let draftIdx = cases[idx].emailDrafts.firstIndex(where: { $0.id == draftId }) else { return }
         let old = cases[idx].emailDrafts[draftIdx]
@@ -725,6 +963,7 @@ final class CaseTreeViewModel: ObservableObject {
 
     func addDeadlines(_ newDeadlines: [LegalDeadline], caseId: UUID) {
         guard let idx = cases.firstIndex(where: { $0.id == caseId }) else { return }
+        guard canMutateCase(caseId) else { return }
         cases[idx].deadlines.append(contentsOf: newDeadlines)
         save()
     }
@@ -739,6 +978,7 @@ final class CaseTreeViewModel: ObservableObject {
         timelineTitle: String? = nil,
         timelineSummary: String? = nil
     ) -> UUID? {
+        guard canMutateCase(caseId) else { return nil }
         let trimmedBase = baseName.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedBase.isEmpty, !trimmedContent.isEmpty else { return nil }

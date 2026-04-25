@@ -160,6 +160,10 @@ struct StrategyNote: Identifiable, Codable, Hashable {
 struct DecisionTreePathway: Identifiable, Codable, Hashable {
     let id: UUID
     var title: String
+    var description: String
+    var recommendedWhen: String
+    var riskLevel: String
+    var nextSteps: [String]
     var whenToUse: String
     var risks: [String]
     var expectedNextStep: String
@@ -168,6 +172,10 @@ struct DecisionTreePathway: Identifiable, Codable, Hashable {
     init(
         id: UUID = UUID(),
         title: String,
+        description: String? = nil,
+        recommendedWhen: String? = nil,
+        riskLevel: String? = nil,
+        nextSteps: [String] = [],
         whenToUse: String,
         risks: [String] = [],
         expectedNextStep: String,
@@ -175,6 +183,10 @@ struct DecisionTreePathway: Identifiable, Codable, Hashable {
     ) {
         self.id = id
         self.title = title
+        self.description = description ?? whenToUse
+        self.recommendedWhen = recommendedWhen ?? whenToUse
+        self.riskLevel = riskLevel ?? "Unknown"
+        self.nextSteps = nextSteps.isEmpty ? [expectedNextStep].filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } : nextSteps
         self.whenToUse = whenToUse
         self.risks = risks
         self.expectedNextStep = expectedNextStep

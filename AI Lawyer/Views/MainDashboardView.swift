@@ -254,7 +254,8 @@ struct MainContentView: View {
 }
 
 enum SidebarWorkspaceItem: String {
-    case exampleCase = "Example Case"
+    case startHere = "Start Here"
+    case exampleCase = "Order of Protection – Example"
 }
 
 struct SidebarView: View {
@@ -274,22 +275,18 @@ struct SidebarView: View {
     @State private var addingSubfolderTarget: UUID?
 
     private var caseTreeViewModel: CaseTreeViewModel { workspace.caseTreeViewModel }
-    private let primarySectionOrder = [
-        "Example Case"
-    ]
-
     private var casesAndResearchFolders: [CaseFolder] {
-        sortFolders(caseTreeViewModel.cases.filter { $0.category == .inProgress }, using: primarySectionOrder)
+        caseTreeViewModel.orderedCases.filter { $0.category == .inProgress }
     }
     private var myCasesAndVitalDocumentsFolders: [CaseFolder] {
-        sortFolders(caseTreeViewModel.cases.filter { $0.category == .mockCases }, using: [])
+        caseTreeViewModel.orderedCases.filter { $0.category == .mockCases }
     }
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 10) {
-                    Text("Cases & Research")
+                    Text("Files & Cases")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(isDarkMode ? .white : .black)
                         .lineLimit(1)
@@ -384,10 +381,10 @@ struct SidebarView: View {
             if let selectedId = caseTreeViewModel.selectedCase?.id {
                 expandedCaseIds.insert(selectedId)
             }
-            if let exampleFolder = caseTreeViewModel.cases.first(where: { $0.title == SidebarWorkspaceItem.exampleCase.rawValue }) ?? caseTreeViewModel.cases.first {
-                workspace.selectCase(byFolder: exampleFolder)
+            if let startFolder = caseTreeViewModel.startHereFolder ?? caseTreeViewModel.orderedCases.first {
+                workspace.selectCase(byFolder: startFolder)
                 caseTreeViewModel.selectedWorkspaceSection = .chat
-                expandedCaseIds.insert(exampleFolder.id)
+                expandedCaseIds.insert(startFolder.id)
             }
         }
     }
@@ -431,13 +428,15 @@ struct SidebarView: View {
             }
             .buttonStyle(.plain)
             .contextMenu {
-                Button("Rename") {
-                    renameCaseTarget = folder.id
-                    renameCaseName = folder.title
-                }
-                Button("Delete", role: .destructive) {
-                    caseTreeViewModel.deleteCase(id: folder.id)
-                    expandedCaseIds.remove(folder.id)
+                if !folder.isReadOnly {
+                    Button("Rename") {
+                        renameCaseTarget = folder.id
+                        renameCaseName = folder.title
+                    }
+                    Button("Delete", role: .destructive) {
+                        caseTreeViewModel.deleteCase(id: folder.id)
+                        expandedCaseIds.remove(folder.id)
+                    }
                 }
             }
 
@@ -460,6 +459,7 @@ struct SidebarView: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
+                    .disabled(folder.isReadOnly)
                     if renameCaseTarget == folder.id {
                         newCaseField(title: "Rename case", text: $renameCaseName) {
                             let trimmed = renameCaseName.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -191,6 +191,12 @@ struct CaseFolder: Identifiable, Codable {
     var deadlines: [LegalDeadline]
     /// Assigned by the court after filing; user-entered when known.
     var courtCaseNumber: String?
+    /// Locks bundled demo/template cases from user or AI mutation.
+    var isReadOnly: Bool
+    /// Marks the guided entry folder; chat from here should create a real case before saving work product.
+    var isBuilderTemplate: Bool
+    /// Stable sidebar ordering for pinned folders before user-created cases.
+    var sidebarSortIndex: Int?
 
     init(id: UUID = UUID(),
          title: String,
@@ -200,7 +206,10 @@ struct CaseFolder: Identifiable, Codable {
          hiddenSubfolders: [CaseSubfolder] = [.recordings, .history, .filedDocuments],
          emailDrafts: [EmailDraft] = [],
          deadlines: [LegalDeadline] = [],
-         courtCaseNumber: String? = nil) {
+         courtCaseNumber: String? = nil,
+         isReadOnly: Bool = false,
+         isBuilderTemplate: Bool = false,
+         sidebarSortIndex: Int? = nil) {
         self.id = id
         self.title = title
         self.category = category
@@ -215,10 +224,13 @@ struct CaseFolder: Identifiable, Codable {
         self.emailDrafts = emailDrafts
         self.deadlines = deadlines
         self.courtCaseNumber = courtCaseNumber
+        self.isReadOnly = isReadOnly
+        self.isBuilderTemplate = isBuilderTemplate
+        self.sidebarSortIndex = sidebarSortIndex
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, category, subfolders, customFolderNames, hiddenSubfolders, emailDrafts, deadlines, courtCaseNumber
+        case id, title, category, subfolders, customFolderNames, hiddenSubfolders, emailDrafts, deadlines, courtCaseNumber, isReadOnly, isBuilderTemplate, sidebarSortIndex
     }
 
     init(from decoder: Decoder) throws {
@@ -236,6 +248,9 @@ struct CaseFolder: Identifiable, Codable {
         emailDrafts = try c.decodeIfPresent([EmailDraft].self, forKey: .emailDrafts) ?? []
         deadlines = try c.decodeIfPresent([LegalDeadline].self, forKey: .deadlines) ?? []
         courtCaseNumber = try c.decodeIfPresent(String.self, forKey: .courtCaseNumber)
+        isReadOnly = try c.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
+        isBuilderTemplate = try c.decodeIfPresent(Bool.self, forKey: .isBuilderTemplate) ?? false
+        sidebarSortIndex = try c.decodeIfPresent(Int.self, forKey: .sidebarSortIndex)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -249,6 +264,9 @@ struct CaseFolder: Identifiable, Codable {
         try c.encode(emailDrafts, forKey: .emailDrafts)
         try c.encode(deadlines, forKey: .deadlines)
         try c.encodeIfPresent(courtCaseNumber, forKey: .courtCaseNumber)
+        try c.encode(isReadOnly, forKey: .isReadOnly)
+        try c.encode(isBuilderTemplate, forKey: .isBuilderTemplate)
+        try c.encodeIfPresent(sidebarSortIndex, forKey: .sidebarSortIndex)
     }
 
     func displayName(for subfolder: CaseSubfolder) -> String {
