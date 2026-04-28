@@ -2007,6 +2007,12 @@ final class ConversationManager: ObservableObject {
             return visibleResponse
         case .failure(let error):
             print("getAIReply failed:", error)
+            let fallbackPayload = legalSignalExtractor.extract(
+                from: last.content,
+                attachmentNames: last.attachmentNames,
+                attachmentContents: last.attachmentContents,
+                messageId: last.id
+            )
             let fallback = localEmergencyReply(for: last.content, caseId: caseId)
             await pauseBeforeReply(fallback)
             _ = appendAssistantResponse(
@@ -2016,6 +2022,13 @@ final class ConversationManager: ObservableObject {
                 targetSubfolder: targetSubfolder ?? .history
             )
             if let caseId {
+                autoApplyAssistantPayload(
+                    fallbackPayload,
+                    caseId: caseId,
+                    userMessageText: last.content,
+                    assistantVisible: fallback
+                )
+                CaseMemoryStore.shared.merge(message: last, payload: fallbackPayload)
                 setStage(.awaitingClarificationAnswers, for: caseId)
             }
             return fallback

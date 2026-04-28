@@ -190,7 +190,7 @@ struct WelcomeView: View {
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text("Cases & Research")
+                    Text("Files & Cases")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.white)
                     Spacer()
@@ -199,9 +199,9 @@ struct WelcomeView: View {
                         .foregroundColor(Color(red: 1.0, green: 0.35, blue: 0.65))
                 }
 
-                folderRow(title: "General Law Questions", isHighlighted: false)
-                folderRow(title: "Jones vs. Smith (Example Case)", isHighlighted: true)
-                folderRow(title: "Trust Law", isHighlighted: false)
+                folderRow(title: "Start Here", isHighlighted: false)
+                folderRow(title: "Order of Protection – Example", isHighlighted: true)
+                folderRow(title: "Your Case", isHighlighted: false)
 
                 HStack {
                     Text("Tap + to add folders")
