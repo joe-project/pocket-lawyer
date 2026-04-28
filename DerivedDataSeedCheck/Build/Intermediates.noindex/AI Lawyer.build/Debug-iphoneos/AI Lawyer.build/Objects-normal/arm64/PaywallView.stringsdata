@@ -1,0 +1,64 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/ViewModels/PaywallView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "This AI provides informational assistance and is not a licensed attorney. Always consult a lawyer before taking legal action.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 60
+        }
+      },
+      {
+        "comment": "",
+        "key": "AI Lawyer",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 16
+        }
+      },
+      {
+        "comment": "",
+        "key": "3 days free, then choose your plan.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "Free trial",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 28
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use every feature with unlimited chats and documents for 3 days. After that you can upgrade for more control over your case files.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Continue in Free Mode",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "See Subscription Options",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 51
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,64 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/PrivacyPolicyView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Privacy Policy",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 52
+        }
+      },
+      {
+        "comment": "",
+        "key": "Privacy Policy",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 9
+        }
+      },
+      {
+        "comment": "",
+        "key": "Policy details",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 15
+        }
+      },
+      {
+        "comment": "",
+        "key": "Why is Pocket Lawyer Different?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pocket Lawyer is built around privacy first. Your case documents, evidence, and folder contents are stored locally on your phone and are not kept by us in a cloud case database.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "When AI is used in the cloud, Pocket Lawyer is designed to anonymize the conversation wherever possible before processing.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "We never share your information with anyone unless you give express permission.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 65
+        }
+      }
+    ]
+  },
+  "version": 1
+}

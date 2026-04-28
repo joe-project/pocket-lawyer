@@ -1,0 +1,312 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/DocumentListView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Delete this item?",
+        "location": {
+          "startingColumn": 13,
+          "startingLine": 106
+        }
+      },
+      {
+        "comment": "",
+        "key": "Document import",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 182
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename file",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 77
+        }
+      },
+      {
+        "comment": "",
+        "key": "Name",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 91
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 110
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 116
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 186
+        }
+      },
+      {
+        "comment": "",
+        "key": "Processing document…",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 194
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add document",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 216
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add image",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 221
+        }
+      },
+      {
+        "comment": "",
+        "key": "Import form or PDF",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 226
+        }
+      },
+      {
+        "comment": "",
+        "key": "Import scanned image",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 231
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add document",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 247
+        }
+      },
+      {
+        "comment": "",
+        "key": "Document name",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 243
+        }
+      },
+      {
+        "comment": "",
+        "key": "Content (optional)",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 244
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 251
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 254
+        }
+      },
+      {
+        "comment": "",
+        "key": "(%lld)",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 312
+        }
+      },
+      {
+        "comment": "",
+        "key": "No files in %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 340
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add documents or images with the + button. Everything is stored on your device.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 343
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move to",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 460
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rollback to v%lld",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 410
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export PDF",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 420
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy to clipboard",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 426
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preview",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 433
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save Preview to Photos",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 440
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 447
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 457
+        }
+      },
+      {
+        "comment": "",
+        "key": "Duplicate",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 471
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 478
+        }
+      },
+      {
+        "comment": "",
+        "key": "Review Autofill",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 833
+        }
+      },
+      {
+        "comment": "",
+        "key": "Form",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 807
+        }
+      },
+      {
+        "comment": "",
+        "key": "Fields",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 814
+        }
+      },
+      {
+        "comment": "",
+        "key": "Needs review",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 824
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 837
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 840
+        }
+      }
+    ]
+  },
+  "version": 1
+}

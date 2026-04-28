@@ -1,0 +1,56 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/ChatInputBar.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Voice input",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 109
+        }
+      },
+      {
+        "comment": "",
+        "key": "Chat error",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 117
+        }
+      },
+      {
+        "comment": "",
+        "key": "Describe what happened...",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 113
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 121
+        }
+      }
+    ]
+  },
+  "version": 1
+}

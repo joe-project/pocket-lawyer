@@ -1,0 +1,40 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/CaseDashboardView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No suggested actions right now.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@:",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 240
+        }
+      },
+      {
+        "comment": "",
+        "key": "Advanced litigation strategy is available with a premium subscription. Upgrade to unlock strategy insights and evidence gap analysis.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 255
+        }
+      },
+      {
+        "comment": "",
+        "key": "Upgrade to view strategy",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 258
+        }
+      }
+    ]
+  },
+  "version": 1
+}

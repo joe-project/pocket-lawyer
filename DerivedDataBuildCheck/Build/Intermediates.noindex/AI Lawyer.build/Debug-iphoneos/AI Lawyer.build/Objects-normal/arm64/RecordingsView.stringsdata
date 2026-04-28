@@ -1,0 +1,120 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/RecordingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 44
+        }
+      },
+      {
+        "comment": "",
+        "key": "No recordings yet",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Expand a folder below and tap \"Add recording\" to add one. Voice recordings from the mic can also be saved here when you record with a case selected.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 88
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add recording",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 105
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Recording",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 132
+        }
+      },
+      {
+        "comment": "",
+        "key": "Folder",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 120
+        }
+      },
+      {
+        "comment": "",
+        "key": "Name",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 128
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save to",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 121
+        }
+      },
+      {
+        "comment": "",
+        "key": "Recording name",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 129
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 139
+        }
+      },
+      {
+        "comment": "",
+        "key": "·",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 186
+        }
+      },
+      {
+        "comment": "",
+        "key": "·",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 192
+        }
+      },
+      {
+        "comment": "",
+        "key": "Case: %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 195
+        }
+      }
+    ]
+  },
+  "version": 1
+}

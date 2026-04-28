@@ -1,0 +1,40 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/LegalArgumentsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No legal arguments yet. Build arguments from the case analysis, evidence, and timeline to see IRAC-style claims here.",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "Evidence",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 66
+        }
+      },
+      {
+        "comment": "",
+        "key": "—",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 70
+        }
+      },
+      {
+        "comment": "",
+        "key": "•",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 77
+        }
+      }
+    ]
+  },
+  "version": 1
+}

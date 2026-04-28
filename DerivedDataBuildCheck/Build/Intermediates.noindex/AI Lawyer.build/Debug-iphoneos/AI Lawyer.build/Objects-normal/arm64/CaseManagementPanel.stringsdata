@@ -1,0 +1,80 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/CaseManagementPanel.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "You're contributing as an invited participant. You can upload evidence or record statements for this case.",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 74
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search cases",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename Case",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 55
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename case",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 35
+        }
+      },
+      {
+        "comment": "",
+        "key": "Give this case a name that makes sense to you. Only you can see it.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "Case name",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 39
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 59
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 62
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cases",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 100
+        }
+      }
+    ]
+  },
+  "version": 1
+}

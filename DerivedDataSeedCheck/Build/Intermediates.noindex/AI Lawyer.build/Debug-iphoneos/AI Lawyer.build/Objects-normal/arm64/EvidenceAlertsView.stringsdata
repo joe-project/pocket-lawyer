@@ -1,0 +1,16 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/EvidenceAlertsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No evidence alerts. Verification will flag missing evidence, contradictions, or unclear timeline events.",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 26
+        }
+      }
+    ]
+  },
+  "version": 1
+}

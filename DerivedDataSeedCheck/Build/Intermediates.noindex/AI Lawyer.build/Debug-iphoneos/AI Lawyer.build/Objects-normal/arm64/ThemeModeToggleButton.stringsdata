@@ -1,0 +1,24 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/ThemeModeToggleButton.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Switch to Light Mode",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 18
+        }
+      },
+      {
+        "comment": "",
+        "key": "Switch to Dark Mode",
+        "location": {
+          "startingColumn": 67,
+          "startingLine": 18
+        }
+      }
+    ]
+  },
+  "version": 1
+}

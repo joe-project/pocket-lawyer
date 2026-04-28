@@ -1,0 +1,16 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/CaseActivityTimelineView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No activity yet.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 17
+        }
+      }
+    ]
+  },
+  "version": 1
+}

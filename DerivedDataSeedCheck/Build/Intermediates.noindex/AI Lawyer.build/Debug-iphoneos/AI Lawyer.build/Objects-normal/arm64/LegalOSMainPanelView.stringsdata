@@ -1,0 +1,56 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/LegalOSMainPanelView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Case: %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "Chat and generated documents are tied to your selected case folder.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 62
+        }
+      },
+      {
+        "comment": "",
+        "key": "DEBUG: message count = %lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 106
+        }
+      },
+      {
+        "comment": "",
+        "key": "No visible messages",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 112
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resume intake",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 127
+        }
+      },
+      {
+        "comment": "",
+        "key": "Evidence",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 192
+        }
+      }
+    ]
+  },
+  "version": 1
+}

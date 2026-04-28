@@ -1,0 +1,240 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/LegalOSFileTreeView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Delete this item?",
+        "location": {
+          "startingColumn": 13,
+          "startingLine": 181
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Expand sidebar",
+        "location": {
+          "startingColumn": 51,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "Collapse sidebar",
+        "location": {
+          "startingColumn": 70,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pocket Lawyer",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 77
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 98
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cases",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 116
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename file",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 152
+        }
+      },
+      {
+        "comment": "",
+        "key": "Name",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 156
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 166
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 169
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 191
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cases",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 222
+        }
+      },
+      {
+        "comment": "",
+        "key": "Files",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 263
+        }
+      },
+      {
+        "comment": "",
+        "key": "Chat",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 304
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unstar",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 736
+        }
+      },
+      {
+        "comment": "",
+        "key": "Star",
+        "location": {
+          "startingColumn": 60,
+          "startingLine": 736
+        }
+      },
+      {
+        "comment": "",
+        "key": "No files",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 611
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move to",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 678
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rollback to v%lld",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 664
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 675
+        }
+      },
+      {
+        "comment": "",
+        "key": "Evidence",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 679
+        }
+      },
+      {
+        "comment": "",
+        "key": "Documents",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 682
+        }
+      },
+      {
+        "comment": "",
+        "key": "Responses",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 685
+        }
+      },
+      {
+        "comment": "",
+        "key": "Knowledge",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 688
+        }
+      },
+      {
+        "comment": "",
+        "key": "Archive",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 691
+        }
+      },
+      {
+        "comment": "",
+        "key": "Duplicate",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 699
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 706
+        }
+      }
+    ]
+  },
+  "version": 1
+}

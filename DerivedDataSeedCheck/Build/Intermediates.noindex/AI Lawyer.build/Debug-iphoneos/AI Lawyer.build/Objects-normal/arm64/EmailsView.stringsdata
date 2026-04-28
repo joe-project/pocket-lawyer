@@ -1,0 +1,224 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/EmailsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Email generation failed",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 51
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 55
+        }
+      },
+      {
+        "comment": "",
+        "key": "Emails",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "No email drafts yet",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap Generate to create a professional legal email from your case analysis. Drafts are stored here only and are never sent automatically.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate email",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select a case",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 108
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select a case from the sidebar to view and generate email drafts.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 111
+        }
+      },
+      {
+        "comment": "",
+        "key": "To: %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 134
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 143
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 154
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 149
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate Email",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 230
+        }
+      },
+      {
+        "comment": "",
+        "key": "Email type",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 216
+        }
+      },
+      {
+        "comment": "",
+        "key": "Type",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 217
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drafts are stored in the case and are never sent automatically. You can copy, export, or edit them.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 225
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 234
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 237
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit Email Draft",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 293
+        }
+      },
+      {
+        "comment": "",
+        "key": "Subject",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 282
+        }
+      },
+      {
+        "comment": "",
+        "key": "Body",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 285
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggested recipient",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 289
+        }
+      },
+      {
+        "comment": "",
+        "key": "Subject",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 283
+        }
+      },
+      {
+        "comment": "",
+        "key": "Optional",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 290
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 297
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 300
+        }
+      }
+    ]
+  },
+  "version": 1
+}

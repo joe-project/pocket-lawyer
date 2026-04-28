@@ -1,0 +1,24 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/UpgradePromptSheet.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "See subscription options",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 44
+        }
+      }
+    ]
+  },
+  "version": 1
+}

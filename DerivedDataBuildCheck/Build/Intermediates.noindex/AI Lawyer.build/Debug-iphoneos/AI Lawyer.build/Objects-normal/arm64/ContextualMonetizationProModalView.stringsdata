@@ -1,0 +1,40 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/ContextualMonetizationProModalView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Unlock Pocket Lawyer Pro",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 17
+        }
+      },
+      {
+        "comment": "",
+        "key": "$9.99/month",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Free Trial",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not now",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 46
+        }
+      }
+    ]
+  },
+  "version": 1
+}

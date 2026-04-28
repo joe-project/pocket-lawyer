@@ -1,0 +1,352 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/MainDashboardView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Pocket Lawyer",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 182
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 192
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 202
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select a case",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 240
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose a case from the list to view the workspace.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 243
+        }
+      },
+      {
+        "comment": "",
+        "key": "Files & Cases",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 289
+        }
+      },
+      {
+        "comment": "",
+        "key": "My Cases & Vital Documents",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 332
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 432
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 436
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add %@",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 451
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Subfolder",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 456
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 541
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 545
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Evidence",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 713
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add evidence",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 705
+        }
+      },
+      {
+        "comment": "",
+        "key": "Attach files or enter evidence details.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 707
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Build a mock case",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 739
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Ask a question",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 740
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Build a document",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 741
+        }
+      },
+      {
+        "comment": "",
+        "key": "Timeline",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 765
+        }
+      },
+      {
+        "comment": "",
+        "key": "Evidence",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 777
+        }
+      },
+      {
+        "comment": "",
+        "key": "Next Actions",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 789
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Jan 12 - Contract signed",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 770
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Feb 3 - Payment missed",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 771
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Feb 10 - Demand letter sent",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 772
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Signed agreement.pdf",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 782
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Email thread screenshot",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 783
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Payment invoice #1023",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 784
+        }
+      },
+      {
+        "comment": "",
+        "key": "• File small claims case",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 794
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Prepare evidence packet",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 795
+        }
+      },
+      {
+        "comment": "",
+        "key": "• Send final notice",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 796
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resume intake",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 913
+        }
+      },
+      {
+        "comment": "",
+        "key": "Yes, generate document",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 937
+        }
+      },
+      {
+        "comment": "",
+        "key": "No case analysis yet",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1016
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use Chat to describe your case or add a voice recording. Analysis will appear here.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1019
+        }
+      },
+      {
+        "comment": "",
+        "key": "Invite Participant",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1085
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share this link with the person you want to invite. They will have access only to this case and can upload evidence or record statements.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1040
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy link",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 1060
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 1073
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1089
+        }
+      },
+      {
+        "comment": "",
+        "key": "What Should I Do Next?",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1113
+        }
+      },
+      {
+        "comment": "",
+        "key": "Invite Participant",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1139
+        }
+      }
+    ]
+  },
+  "version": 1
+}

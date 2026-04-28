@@ -1,0 +1,312 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/CaseWorkspaceView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Voice input",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 159
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Your Case",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tell us what happened and we’ll begin building your legal case.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Record Your Story",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "Type Your Story",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 122
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 163
+        }
+      },
+      {
+        "comment": "",
+        "key": "Nothing here yet. Use chat to add the first item to this section.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Analyzing your case...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 212
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Your Case",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 282
+        }
+      },
+      {
+        "comment": "",
+        "key": "Type your story",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 262
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 286
+        }
+      },
+      {
+        "comment": "",
+        "key": "Continue",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 289
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Your Case",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 359
+        }
+      },
+      {
+        "comment": "",
+        "key": "Record your story",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 302
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap stop when you're done. We'll transcribe and use it to build your case memory.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 306
+        }
+      },
+      {
+        "comment": "",
+        "key": "Transcript",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 334
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stop & Transcribe",
+        "location": {
+          "startingColumn": 58,
+          "startingLine": 324
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Recording",
+        "location": {
+          "startingColumn": 80,
+          "startingLine": 324
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 363
+        }
+      },
+      {
+        "comment": "",
+        "key": "Continue",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 371
+        }
+      },
+      {
+        "comment": "",
+        "key": "No timeline events yet. Tasks, filings, and evidence will appear here.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 431
+        }
+      },
+      {
+        "comment": "",
+        "key": "Court case number (after the court assigns it)",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 424
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. 24-CV-12345",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 426
+        }
+      },
+      {
+        "comment": "",
+        "key": "+ %lld more",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 460
+        }
+      },
+      {
+        "comment": "",
+        "key": "No evidence yet. Add photos, documents, or other files to support your case.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 487
+        }
+      },
+      {
+        "comment": "",
+        "key": "+ %lld more",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 504
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resume intake",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 560
+        }
+      },
+      {
+        "comment": "",
+        "key": "No documents yet for this case element.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 623
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ask clarifying questions about this section and short bullet notes will appear here.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 642
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggested next step",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 744
+        }
+      },
+      {
+        "comment": "",
+        "key": "What Should I Do Next?",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 786
+        }
+      },
+      {
+        "comment": "",
+        "key": "Invite Participant",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 812
+        }
+      },
+      {
+        "comment": "",
+        "key": "Invite Participant",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 885
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share this link with the person you want to invite. They will have access only to this case and can upload evidence or record statements.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 843
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy link",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 861
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 873
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 889
+        }
+      },
+      {
+        "comment": "",
+        "key": "+ %lld more",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1001
+        }
+      }
+    ]
+  },
+  "version": 1
+}

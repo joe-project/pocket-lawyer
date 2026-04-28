@@ -1,0 +1,32 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/CaseTimelineView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Timeline",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "No timeline events yet",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reconstruct the timeline from your messages and evidence to see events here.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 53
+        }
+      }
+    ]
+  },
+  "version": 1
+}

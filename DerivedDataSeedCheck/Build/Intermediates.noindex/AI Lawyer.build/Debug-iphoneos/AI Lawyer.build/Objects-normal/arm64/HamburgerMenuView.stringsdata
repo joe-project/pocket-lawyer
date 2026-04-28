@@ -1,0 +1,56 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/HamburgerMenuView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Menu",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Dark Mode",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 14
+        }
+      },
+      {
+        "comment": "",
+        "key": "Legal Disclaimer",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 24
+        }
+      },
+      {
+        "comment": "",
+        "key": "Privacy Policy",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "Suggest a Feature — Earn $",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 49
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,56 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/FeatureSuggestionSheet.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Suggest a Feature — Earn $",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Got an idea?",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 11
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tell us what would make AI Lawyer better. If we ship it, we may reach out about a small cash reward.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 15
+        }
+      },
+      {
+        "comment": "",
+        "key": "Saved. Thanks — we read every suggestion.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "Submit",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 49
+        }
+      }
+    ]
+  },
+  "version": 1
+}

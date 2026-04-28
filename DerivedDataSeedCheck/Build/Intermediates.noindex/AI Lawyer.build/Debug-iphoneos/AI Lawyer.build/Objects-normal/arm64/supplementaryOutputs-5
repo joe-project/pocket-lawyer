@@ -1,0 +1,107 @@
+{
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/LegalGuardrails.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalGuardrails.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalGuardrails.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalGuardrails.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalGuardrails.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalGuardrails.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/LegalResearchService.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalResearchService.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalResearchService.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalResearchService.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalResearchService.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalResearchService.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/LegalSignalExtractor.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalSignalExtractor.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalSignalExtractor.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalSignalExtractor.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalSignalExtractor.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LegalSignalExtractor.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/LitigationStrategyEngine.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyEngine.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyEngine.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyEngine.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyEngine.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyEngine.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/LitigationStrategyParser.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyParser.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyParser.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyParser.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyParser.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LitigationStrategyParser.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/LocalCaseStorage.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LocalCaseStorage.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LocalCaseStorage.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LocalCaseStorage.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LocalCaseStorage.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/LocalCaseStorage.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/MessageBatcher.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/MessageBatcher.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/MessageBatcher.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/MessageBatcher.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/MessageBatcher.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/MessageBatcher.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/NextActionEngine.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/NextActionEngine.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/NextActionEngine.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/NextActionEngine.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/NextActionEngine.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/NextActionEngine.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/OnboardingEngine.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OnboardingEngine.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OnboardingEngine.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OnboardingEngine.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OnboardingEngine.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OnboardingEngine.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/OpenAIService.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OpenAIService.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OpenAIService.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OpenAIService.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OpenAIService.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/OpenAIService.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/PremiumAccessManager.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/PremiumAccessManager.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/PremiumAccessManager.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/PremiumAccessManager.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/PremiumAccessManager.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/PremiumAccessManager.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/SettlementMarketplace.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/SettlementMarketplace.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/SettlementMarketplace.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/SettlementMarketplace.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/SettlementMarketplace.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/SettlementMarketplace.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/TimelineReconstructionEngine.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/TimelineReconstructionEngine.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/TimelineReconstructionEngine.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/TimelineReconstructionEngine.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/TimelineReconstructionEngine.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/TimelineReconstructionEngine.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/VoiceCaseRoutingEngine.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceCaseRoutingEngine.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceCaseRoutingEngine.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceCaseRoutingEngine.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceCaseRoutingEngine.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceCaseRoutingEngine.swiftdeps"
+  },
+  "/Users/user/Desktop/AI Lawyer/AI Lawyer/Services/VoiceRecorder.swift" : {
+    "const-values" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceRecorder.swiftconstvalues",
+    "dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceRecorder.d",
+    "diagnostics" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceRecorder.dia",
+    "object" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceRecorder.o",
+    "swift-dependencies" : "/Users/user/Desktop/AI Lawyer/DerivedDataSeedCheck/Build/Intermediates.noindex/AI Lawyer.build/Debug-iphoneos/AI Lawyer.build/Objects-normal/arm64/VoiceRecorder.swiftdeps"
+  }
+}

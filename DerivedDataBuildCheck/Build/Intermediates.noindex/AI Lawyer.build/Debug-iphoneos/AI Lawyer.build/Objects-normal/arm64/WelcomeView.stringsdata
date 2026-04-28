@@ -1,0 +1,96 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/WelcomeView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Get Started",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Continue",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 41
+        }
+      },
+      {
+        "comment": "",
+        "key": "Why Pocket Lawyer Is Different",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "One conversation turns into real legal work. We reason through facts, build timelines, track evidence, and organize the case as you chat.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ask anything. Build as you go.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 108
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use chat naturally. Pocket Lawyer can turn the conversation into a timeline, evidence list, documents needed, and next-step instructions without making you fill out a form.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 112
+        }
+      },
+      {
+        "comment": "",
+        "key": "Organize folders in seconds",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 132
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add folders, rename them, and keep each case or document set clean without leaving the sidebar.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 137
+        }
+      },
+      {
+        "comment": "",
+        "key": "Files & Cases",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 193
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap + to add folders",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "Long-press a folder to rename it",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 215
+        }
+      }
+    ]
+  },
+  "version": 1
+}

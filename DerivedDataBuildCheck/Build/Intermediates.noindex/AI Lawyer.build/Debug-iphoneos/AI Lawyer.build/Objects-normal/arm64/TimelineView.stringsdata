@@ -1,0 +1,32 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/TimelineView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No timeline events yet",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 28
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tasks, filings, and AI-generated responses will appear here and update automatically.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Revert to here",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 67
+        }
+      }
+    ]
+  },
+  "version": 1
+}

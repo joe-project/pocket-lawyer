@@ -1,0 +1,16 @@
+{
+  "source": "/Users/user/Desktop/AI Lawyer/AI Lawyer/Views/CaseProgressView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%lld of %lld steps completed",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 14
+        }
+      }
+    ]
+  },
+  "version": 1
+}
