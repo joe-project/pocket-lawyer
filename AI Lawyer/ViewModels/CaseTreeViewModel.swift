@@ -182,107 +182,154 @@ final class CaseTreeViewModel: ObservableObject {
     private func exampleSubfolders(caseId: UUID) -> [CaseSubfolder: [CaseFile]] {
         [
             .history: [
-                exampleNote("Example Intake Conversation", caseId: caseId, content: """
-                User: My ex threatened me outside my apartment after sending several scary texts.
-                Pocket Lawyer: I can help organize this into a protection order case. What happened most recently, and do you have screenshots or witnesses?
-                User: Yesterday he said he would come back tonight, and my neighbor heard it.
-                Pocket Lawyer: That gives us recent threat, witness, and urgency facts. I would build the filing packet around dates, direct quotes, screenshots, and your fear of immediate harm.
+                exampleNote("Chat Transcript", caseId: caseId, content: """
+                User: “My ex has been showing up at my house and texting threats. I’m scared and don’t know what to do.”
+                Assistant: “Understood. I can help you file a protection order and organize your evidence. Were there any direct threats of harm and do you have dates/screenshots?”
+                User: “Yes—texts from last week and he showed up twice uninvited.”
+                Assistant: “Got it. I’ll build your case file: timeline, evidence log, filing steps, and what to say in court.”
                 """)
             ],
             .evidence: [
                 exampleNote("Incident Log", caseId: caseId, content: """
-                • Jan 4 - Defendant sent repeated texts saying he would "make me pay."
-                • Jan 7 - Defendant waited outside workplace and followed user to car.
-                • Jan 10 - Neighbor heard defendant yell a direct threat outside apartment.
-                • Jan 11 - User saved screenshots and wrote down witness name.
-                • Jan 12 - User considered emergency protection order because defendant threatened to return.
+                - 2026-03-01: Uninvited visit; refused to leave for 20 minutes.
+                - 2026-03-03: Threatening text: “you’ll regret this.”
+                - 2026-03-05: 12 missed calls within 1 hour.
+                - 2026-03-07: Second uninvited visit; neighbor witnessed.
+                - 2026-03-08: Explicit threat: “I’m coming over tonight.”
+
+                Evidence to attach:
+                - screenshots
+                - call logs
+                - doorbell/video footage
+                - neighbour statement
+                - police report if available
                 """)
             ],
             .documents: [
                 exampleNote("Protection Order Filing Checklist", caseId: caseId, content: """
-                • Petition/application for protection order
-                • Incident log with dates and direct quotes
-                • Screenshots or printed messages
-                • Witness names and contact information
-                • Address information needed for service
-                • Any police report or prior complaint number
-                """),
-                exampleNote("Where to File (State Example)", caseId: caseId, content: """
-                File in the county court or family/protection order intake office where the protected person lives, where the defendant lives, or where the incidents happened. Confirm local rules before filing.
+                1. Complete protection order petition.
+                2. Add dates, locations, and threat details.
+                3. Attach screenshots and call logs.
+                4. Add witness names and contact information.
+                5. Request temporary/emergency order if danger is immediate.
+                6. File with county clerk or domestic violence protection order office.
+                7. Prepare for hearing.
                 """),
                 exampleNote("Emergency vs Standard Order", caseId: caseId, content: """
-                Emergency order: use when recent threats or immediate safety concerns justify same-day review.
-                Standard order: use when the threat is serious but not immediate, or when more evidence can be gathered before hearing.
+                Emergency / Ex Parte Order:
+                Used when immediate danger exists. Judge may issue temporary protection before respondent appears.
+
+                Standard Protection Order:
+                Issued after hearing. Respondent has chance to appear. Usually lasts longer.
                 """)
             ],
             .response: [
-                exampleNote("Example Defendant Denial Response", caseId: caseId, content: """
-                Defendant denies making threats and claims the contact was mutual.
+                exampleNote("If Respondent Denies Allegations", caseId: caseId, content: """
+                Stay factual.
 
-                Response analysis:
-                • Treat denial as expected, not fatal.
-                • Compare denial against screenshots, direct quotes, witness account, and timing.
-                • Avoid arguing motive; focus on conduct, fear, and documented incidents.
+                Say:
+                “The denial does not match the documented texts, call logs, and witness account.”
+
+                Then point to:
+                - exact dates
+                - screenshots
+                - call history
+                - witness statement
+
+                Ask the court to rely on documented evidence.
                 """)
             ],
             .strategy: [
-                exampleNote("Protection Order Strategy", caseId: caseId, content: """
-                Immediate filing path: strongest if recent threat, fear of return, screenshots, or witness support are ready.
-                Evidence-gathering path: use if dates, quotes, or exhibits are too vague for a judge.
-                Risk level: High if defendant knows where user lives or recently threatened return.
+                exampleNote("Initial Strategy", caseId: caseId, content: """
+                Recommended path:
+                File emergency protection order immediately.
+
+                Why:
+                There is a pattern of escalation:
+                - repeated unwanted contact
+                - threats
+                - uninvited visits
+                - possible witness
+
+                Strengths:
+                - dated messages
+                - call records
+                - witness
+                - repeated behaviour
+
+                Weaknesses:
+                - need screenshots preserved
+                - need proof of physical visits
+                - need witness statement if possible
+
+                Next action:
+                Prepare petition, attach evidence, request emergency order.
                 """)
             ],
             .coaching: [
                 exampleNote("Courtroom Coaching", caseId: caseId, content: """
-                How to speak to the judge:
-                • Start with the most recent threat.
-                • Use dates, direct quotes, and specific conduct.
-                • Explain why you are afraid now.
-                • Stay calm and do not argue with the defendant.
-                • Ask clearly for no contact and stay-away terms.
+                Tell the judge:
+                “I am afraid for my safety because of repeated incidents on these dates.”
+
+                Focus on:
+                - what happened
+                - when it happened
+                - why it made you afraid
+                - what evidence supports it
+
+                Do not ramble.
+                Do not argue.
+                Do not speculate.
+                Do not exaggerate.
                 """)
             ],
             .decisionTreePathways: [
-                exampleNote("Decision Tree Pathways", caseId: caseId, content: """
-                Path 1: File immediately
-                Description: Seek emergency protection based on recent threats and fear of return.
-                Recommended when: Threat is recent, specific, and supported by screenshots or witness.
-                Risk level: Medium
-                Next steps:
-                • Prepare petition.
-                • Attach incident log and screenshots.
-                • Ask clerk about emergency review.
+                exampleNote("Pathways Overview", caseId: caseId, content: """
+                PATH 1 — File Immediately
+                title: File Immediately
+                description: File for emergency protection based on recent threats and escalating unwanted contact.
+                recommended_when: Use when threats are recent or escalating.
+                risk_level: low delay risk, high urgency
+                next_steps:
+                - complete petition
+                - attach evidence
+                - file ex parte today
 
-                Path 2: Gather more evidence first
-                Description: Tighten proof before filing.
-                Recommended when: Facts are real but dates, screenshots, or witness details are incomplete.
-                Risk level: Medium-High if delay affects safety.
-                Next steps:
-                • Print texts.
-                • Write date-by-date timeline.
-                • Ask witness for a short statement.
+                PATH 2 — Gather More Evidence First
+                title: Gather More Evidence First
+                description: Strengthen documentation before filing if current proof is incomplete.
+                recommended_when: Use when documentation is weak.
+                risk_level: delay could increase danger
+                next_steps:
+                - collect screenshots
+                - get witness statement
+                - save call logs
 
-                Path 3: Attempt no-contact request before filing
-                Description: Send one clear written no-contact demand only if safe.
-                Recommended when: Immediate danger is lower and user wants a written boundary before court.
-                Risk level: High if contact escalates.
-                Next steps:
-                • Use neutral wording.
-                • Do not debate.
-                • Save any response.
+                PATH 3 — Send No-Contact Request First
+                title: Send No-Contact Request First
+                description: Send one written boundary request before filing only when danger appears lower.
+                recommended_when: Use only in lower-risk cases.
+                risk_level: not enforceable and could provoke response
+                next_steps:
+                - send written request
+                - save proof
+                - file if ignored or violated
                 """)
             ],
             .sayDontSay: [
-                exampleNote("Say / Don't Say", caseId: caseId, content: """
+                exampleNote("Hearing Guidance", caseId: caseId, content: """
                 Say:
-                • "On Jan 10, he said, '[direct threat],' and I believed he would come back."
-                • "I am afraid because the threats are recent and specific."
-                • "I have screenshots and a witness who heard the threat."
+                - “I am afraid for my safety.”
+                - “These incidents happened on these dates.”
+                - “Here are the screenshots and call records.”
+                - “A neighbour witnessed one incident.”
 
-                Don't say:
-                • Do not exaggerate or guess.
-                • Do not speculate about mental state.
-                • Do not focus on unrelated relationship history unless it explains current fear.
+                Don’t say:
+                - “I just want revenge.”
+                - “I think they might do something, but I have no facts.”
+                - unrelated relationship history
+                - speculation
+                - insults
                 """)
             ]
         ]
@@ -301,10 +348,11 @@ final class CaseTreeViewModel: ObservableObject {
 
     private func exampleTimelineEvents() -> [TimelineEvent] {
         [
-            TimelineEvent(kind: .response, title: "Jan 4 - Threatening texts", summary: "Severity: medium. Repeated texts included retaliatory language.", subfolder: .timeline),
-            TimelineEvent(kind: .response, title: "Jan 7 - Followed after work", summary: "Severity: high. Defendant waited outside workplace and followed user to car.", subfolder: .timeline),
-            TimelineEvent(kind: .response, title: "Jan 10 - Direct threat overheard", summary: "Severity: high. Neighbor heard direct threat outside apartment.", subfolder: .timeline),
-            TimelineEvent(kind: .response, title: "Jan 12 - Emergency filing considered", summary: "Severity: high. User feared defendant would return that night.", subfolder: .timeline)
+            TimelineEvent(kind: .response, title: "2026-03-01 — Uninvited visit at residence", summary: "Refused to leave for 20 minutes — severity medium", subfolder: .timeline),
+            TimelineEvent(kind: .response, title: "2026-03-03 — Text message", summary: "Implied threat “you’ll regret this” — severity high", subfolder: .timeline),
+            TimelineEvent(kind: .response, title: "2026-03-05 — Repeated calls", summary: "12 missed calls within 1 hour — severity medium", subfolder: .timeline),
+            TimelineEvent(kind: .response, title: "2026-03-07 — Second uninvited visit", summary: "Neighbor witnessed — severity high", subfolder: .timeline),
+            TimelineEvent(kind: .response, title: "2026-03-08 — Text message", summary: "Explicit threat “I’m coming over tonight” — severity high", subfolder: .timeline)
         ]
     }
 
